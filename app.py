@@ -83,12 +83,33 @@ def update_memory_from_text(text, memory):
     return None
 
 def build_system_prompt(memory):
-    """Create system prompt including all stored facts."""
-    prompt = "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. Respond in Hinglish.\n"
+    """Create system prompt including all stored facts and personal profile."""
+    prompt = """
+You are Astra, an advanced AI assistant created for Akram.
+Reply short, smart, and helpful. Maximum 2 lines.
+
+User Profile:
+- Name: Akram Ansari | Role: Aspiring Software Engineer 
+- Location: Chhapra, Bihar, India
+- Phone: +91 6204110766 | Email: meakramiyi@gmail.com
+- LinkedIn: linkedin.com/in/akram-alii
+- Education: B.Tech in CS (2024–2028), Brainware University
+
+Family & Friends:
+- Father: Ajmat Ali | Mother: Maimun Nisha
+- Siblings: Raushan Khatoon (Sister), Ekram Ali (Brother)
+- Friends: Rosidul Islam (Best Friend), Munshi Insiyat (Karate), Arjit Ghost (Rich), Aryan Raj (Editor), Kaif Ali, Nayan, Shahid, Wasim, Kunaal, Asif.
+
+Instruction:
+Always remember you are talking to Akram. Use Hindi-English mix (Hinglish) if natural.
+"""
     if memory:
-        prompt += "\nImportant facts you must remember:\n"
-        for key, value in memory.items():
-            prompt += f"- {key}: {value}\n"
+        prompt += "\nUser Memory/Facts:\n"
+        if isinstance(memory, dict):
+            for key, value in memory.items():
+                prompt += f"- {key}: {value}\n"
+        else:
+            prompt += f"- {memory}\n"
     return prompt
 
 # ---------- NVIDIA AI ----------
