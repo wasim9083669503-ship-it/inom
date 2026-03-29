@@ -51,6 +51,9 @@ try:
 except ImportError:
     pygame = None
 
+# Global Flags
+FACE_RECOGNITION_AVAILABLE = False
+
 # -------- FIREBASE CLOUD MEMORY --------
 FB_URL = 'https://astra-ai-2cc5a-default-rtdb.asia-southeast1.firebasedatabase.app'
 
