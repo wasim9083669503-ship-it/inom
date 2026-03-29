@@ -1,0 +1,10 @@
+__pycache__/
+.venv/
+.env
+*.mp3
+screenshot.png
+memory.json
+PyWhatKit_DB.txt
+python_installer.exe
+error.txt
+test.txt
