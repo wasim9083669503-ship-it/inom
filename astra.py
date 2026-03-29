@@ -121,7 +121,8 @@ def update_ui(text):
 
 # 🔥 AI STABILITY FIX
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Using gemini-2.5-flash (Supported in 2026)
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # -------- SPEAK --------
 # Use gTTS (original Hindi voice) + pygame for crash-free playback
@@ -225,7 +226,7 @@ User: {prompt}
         if "429" in error_msg or "quota" in error_msg.lower():
             return "quota_exceeded"
         elif "model not found" in error_msg.lower() or "not_found" in error_msg.lower():
-            return "Model Error ❌ (Check name: gemini-1.5-flash)"
+            return "Model Error ❌ (Check name: gemini-2.5-flash)"
         return f"AI error (Ref: {error_msg[:20]}...)"
 
 # -------- LISTEN --------
