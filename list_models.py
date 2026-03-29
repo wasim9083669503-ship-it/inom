@@ -1,15 +1,15 @@
+import os
 import google.generativeai as genai
-import warnings
-warnings.filterwarnings("ignore")
+from dotenv import load_dotenv
+load_dotenv()
 
-genai.configure(api_key="")
+# Configure with Env Var
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-models = []
-for m in genai.list_models():
-    if "generateContent" in m.supported_generation_methods:
-        models.append(m.name)
-
-# Print only gemini-2 flash models
-for name in models:
-    if "gemini-2" in name and "flash" in name:
-        print(name)
+print("Available Gemini Models:")
+try:
+    for m in genai.list_models():
+        if "generateContent" in m.supported_generation_methods:
+            print(f"- {m.name}")
+except Exception as e:
+    print(f"Error listing models: {e}")

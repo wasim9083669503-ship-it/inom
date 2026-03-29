@@ -55,24 +55,36 @@ except ImportError:
 FACE_RECOGNITION_AVAILABLE = False
 
 # -------- FIREBASE CLOUD MEMORY --------
-FB_URL = 'https://astra-ai-2cc5a-default-rtdb.asia-southeast1.firebasedatabase.app'
+FB_URL = os.getenv("FIREBASE_DB_URL") or 'https://astra-ai-2cc5a-default-rtdb.asia-southeast1.firebasedatabase.app'
 
 try:
-    if os.path.exists("firebase.json"):
-        with open("firebase.json", "r") as f:
-            fb_config = json.load(f)
-        
-        if fb_config.get("project_id") == "YOUR_PROJECT_ID": # Only checking project_id placeholder now
-            print("⚠️ FIREBASE NOTICE: Please update firebase.json with your credentials.")
-            print("💡 Cloud sync is currently DISABLED (using local memory only).")
-        else:
-            cred = credentials.Certificate("firebase.json")
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': FB_URL
-            })
-            print("✅ Firebase Cloud Memory Connected!")
+    # 1. Check for Environment Variable (JSON String)
+    if os.getenv("FIREBASE_CREDENTIALS"):
+        firebase_data = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+        cred = credentials.Certificate(firebase_data)
+        firebase_admin.initialize_app(cred, {'databaseURL': FB_URL})
+        print("✅ Firebase Connected (Env Variable)!")
+
+    # 2. Check for Secret File (Common in Render)
+    elif os.path.exists("FIREBASE_CREDENTIALS"):
+        cred = credentials.Certificate("FIREBASE_CREDENTIALS")
+        firebase_admin.initialize_app(cred, {'databaseURL': FB_URL})
+        print("✅ Firebase Connected (Secret File)!")
+
+    # 3. Check for Secret File in /etc/secrets/ (Alternative Render path)
+    elif os.path.exists("/etc/secrets/FIREBASE_CREDENTIALS"):
+        cred = credentials.Certificate("/etc/secrets/FIREBASE_CREDENTIALS")
+        firebase_admin.initialize_app(cred, {'databaseURL': FB_URL})
+        print("✅ Firebase Connected (/etc/secrets/)!")
+
+    # 4. Local Fallback
+    elif os.path.exists("firebase.json"):
+        cred = credentials.Certificate("firebase.json")
+        firebase_admin.initialize_app(cred, {'databaseURL': FB_URL})
+        print("✅ Firebase Connected (Local file)!")
+
     else:
-        print("ℹ️ Firebase config (firebase.json) not found. Cloud sync disabled.")
+        print("ℹ️ Firebase credentials not found. Cloud sync disabled.")
 except Exception as e:
     print(f"⚠️ Firebase Setup Info: {e}")
     print("💡 Proceeding with local memory fallback.")
@@ -107,8 +119,9 @@ def update_ui(text):
         except:
             pass
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY") or "")
-model = genai.GenerativeModel("gemini-1.5-flash-latest")
+# 🔥 AI STABILITY FIX
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # -------- SPEAK --------
 # Use gTTS (original Hindi voice) + pygame for crash-free playback
@@ -208,10 +221,12 @@ User: {prompt}
             return "No response"
     except Exception as e:
         error_msg = str(e)
-        print("ERROR:", error_msg)
-        if "429" in error_msg or "quota" in error_msg.lower() or "exceeded" in error_msg.lower():
+        print(f"❌ Gemini Error Trace: {error_msg}")
+        if "429" in error_msg or "quota" in error_msg.lower():
             return "quota_exceeded"
-        return "AI error"
+        elif "model not found" in error_msg.lower() or "not_found" in error_msg.lower():
+            return "Model Error ❌ (Check name: gemini-1.5-flash)"
+        return f"AI error (Ref: {error_msg[:20]}...)"
 
 # -------- LISTEN --------
 def listen():
