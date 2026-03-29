@@ -231,6 +231,22 @@ current_queue_index = 0
 # -------- AI EXPERT (NVIDIA) --------
 def ai_chat(prompt):
     try:
+        # 🥇 STEP 1: MEMORY FETCH KARO
+        try:
+            memory_data = db.reference("memory").get()
+        except Exception as e:
+            print(f"Memory Fetch Error: {e}")
+            memory_data = "No memory available."
+
+        # 🥇 STEP 2: PROMPT ME ADD KARO
+        full_prompt = f"""
+User Memory:
+{memory_data}
+
+User Question:
+{prompt}
+"""
+
         system_prompt = f"""
 You are Astra, an advanced AI assistant created for Akram.
 Reply short, smart, and helpful. Maximum 2 lines.
@@ -250,11 +266,12 @@ Family & Friends:
 Instruction:
 Always remember you are talking to Akram. Use Hindi-English mix (Hinglish) if natural.
 """
+        # 🥇 STEP 3: AI KO DO
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": full_prompt}
             ],
             temperature=0.7,
             max_tokens=250
