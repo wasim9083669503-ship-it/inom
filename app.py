@@ -17,8 +17,8 @@ load_dotenv()
 app = Flask(__name__)
 
 # ---------- Configuration ----------
-PROFILES_DIR = 'profiles'       # folder for user profiles
-REMINDER_CHECK_INTERVAL = 3600  # seconds (1 hour)
+PROFILES_DIR = 'profiles'
+REMINDER_CHECK_INTERVAL = 3600  # seconds
 os.makedirs(PROFILES_DIR, exist_ok=True)
 
 # ---------- NVIDIA AI Client ----------
@@ -46,9 +46,7 @@ def ask_nvidia(prompt, system_message=None):
 
 # ---------- Web Search (DuckDuckGo) ----------
 def web_search(query):
-    """Perform a DuckDuckGo search and return a summary + link."""
     try:
-        # Use DuckDuckGo's free, no-key instant answer API
         url = "https://api.duckduckgo.com/"
         params = {
             "q": query,
@@ -63,7 +61,6 @@ def web_search(query):
             link = data.get("AbstractURL", "")
             return f"🔍 {summary}\n\nRead more: {link}" if link else f"🔍 {summary}"
         elif data.get("RelatedTopics"):
-            # fallback to first related topic
             first = data["RelatedTopics"][0]
             if "Text" in first:
                 return f"🔍 {first['Text']}"
@@ -80,7 +77,6 @@ def load_profile(user="akram"):
     if os.path.exists(file):
         with open(file, 'r') as f:
             return json.load(f)
-    # Default profile
     return {
         "name": user.capitalize(),
         "memory": {},
@@ -123,29 +119,26 @@ def check_reminders(user):
     return due
 
 # ---------- Proactive Reminder Thread ----------
-reminder_notifications = []  # list of (user, message)
+reminder_notifications = []
 def reminder_monitor():
     while True:
         time.sleep(REMINDER_CHECK_INTERVAL)
-        # In a real multi-user scenario, we would scan all profiles.
-        # For simplicity, we'll scan all .json files in profiles/
         for f in os.listdir(PROFILES_DIR):
             if f.endswith('.json'):
                 user = f[:-5]
                 due = check_reminders(user)
                 for r in due:
                     reminder_notifications.append((user, r["message"]))
-        # Also check the default profile if not already covered
-        default_profile = os.path.join(PROFILES_DIR, "akram.json")
-        if not os.path.exists(default_profile):
+        # also check default profile if not already covered
+        default_file = get_profile_file("akram")
+        if not os.path.exists(default_file):
             due = check_reminders("akram")
             for r in due:
                 reminder_notifications.append(("akram", r["message"]))
 
-# Start background thread
 threading.Thread(target=reminder_monitor, daemon=True).start()
 
-# ---------- Knowledge Graph Functions (per user) ----------
+# ---------- Knowledge Graph ----------
 def update_graph(user, text):
     profile = load_profile(user)
     graph = profile["graph"]
@@ -184,9 +177,8 @@ def query_graph(user, query):
             return f"Aapke jija {jija} hain."
     return None
 
-# ---------- Image Generation (Pollinations) ----------
+# ---------- Image Generation ----------
 def generate_image(prompt):
-    import urllib.parse
     encoded = urllib.parse.quote(prompt)
     return f"https://image.pollinations.ai/prompt/{encoded}"
 
@@ -205,7 +197,7 @@ def get_youtube_metadata(song_name):
     except:
         return None
 
-playlist = []  # per‑session queue, could be moved to profile later
+playlist = []  # global queue, not per-user
 
 # ---------- Weather ----------
 def get_weather(city):
@@ -224,7 +216,7 @@ def get_weather(city):
     except:
         return "Weather service error."
 
-# ---------- Emotion Detection (keyword) ----------
+# ---------- Emotion Detection ----------
 def detect_emotion(text):
     text_lower = text.lower()
     if any(w in text_lower for w in ['sad', 'depressed', 'unhappy', 'upset']):
@@ -238,16 +230,13 @@ def detect_emotion(text):
 # ---------- Morning Briefing ----------
 def morning_briefing(user):
     profile = load_profile(user)
-    # Weather for default city (Chhapra)
     weather = get_weather("Chhapra") if os.getenv('WEATHER_API_KEY') else "Weather not available."
-    # Reminders
     due = check_reminders(user)
     reminder_text = ""
     if due:
         reminder_text = "🔔 Reminders:\n" + "\n".join([f"- {r['message']} (at {datetime.fromisoformat(r['time']).strftime('%I:%M %p')})" for r in due])
     else:
         reminder_text = "No reminders for today."
-    # Quote
     import random
     quotes = [
         "The only way to do great work is to love what you do. – Steve Jobs",
@@ -255,7 +244,6 @@ def morning_briefing(user):
         "Start where you are. Use what you have. Do what you can. – Arthur Ashe"
     ]
     quote = random.choice(quotes)
-    # Song suggestion
     song_suggestion = "How about listening to 'Jawan'? 🎵"
     return f"🌞 Good morning, {profile['name']}!\n\n{weather}\n\n{reminder_text}\n\n💡 {quote}\n\n🎵 {song_suggestion}"
 
@@ -288,7 +276,7 @@ def set_theme(user, theme_name):
     save_profile(user, profile)
     return load_theme(user)
 
-# ---------- HTML (same as before, but we'll embed it) ----------
+# ---------- HTML (Cinematic UI) ----------
 HTML = \"\"\"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -558,7 +546,6 @@ HTML = \"\"\"<!DOCTYPE html>
                 const reply = data.reply || 'No response.';
                 if (typingDiv) typingDiv.remove();
                 addMessage('bot', reply);
-                // Apply theme if returned
                 if (data.theme) {
                     document.documentElement.style.setProperty('--primary', data.theme.primary);
                     document.documentElement.style.setProperty('--secondary', data.theme.secondary);
@@ -599,7 +586,6 @@ HTML = \"\"\"<!DOCTYPE html>
 
 @app.route('/')
 def index():
-    # default user = akram; we can later add cookie based selection
     theme = load_theme("akram")
     return render_template_string(HTML, theme=theme)
 
@@ -610,22 +596,19 @@ def ask():
     if not user_input:
         return jsonify({'reply': 'Kuch boliye.'})
 
-    # Detect user from query param or cookie? For now, default "akram"
-    # In a real multi-user system, you would pass ?user=raushan in URL
-    # For simplicity, we'll accept "switch user <name>" command
+    # User switching
     global current_user
     if not hasattr(app, 'current_user'):
         app.current_user = "akram"
     if user_input.startswith('switch user '):
         new_user = user_input[12:].strip().lower()
         app.current_user = new_user
-        # Create profile if not exists
-        load_profile(new_user)  # ensures file exists
+        load_profile(new_user)  # ensure profile exists
         return jsonify({'reply': f"Switched to profile: {new_user.capitalize()}"})
 
     user = app.current_user
 
-    # Check for any pending proactive reminders for this user
+    # Proactive reminders
     global reminder_notifications
     pending = [msg for (u, msg) in reminder_notifications if u == user]
     reminder_notifications = [(u, msg) for (u, msg) in reminder_notifications if u != user]
@@ -633,7 +616,7 @@ def ask():
     if pending:
         reminder_msg = "🔔 **Proactive Reminder:**\\n" + "\\n".join(pending) + "\\n\\n"
 
-    # 1. Theme change command
+    # 1. Theme
     if user_input.startswith('set theme '):
         theme_name = user_input[10:].strip()
         theme = set_theme(user, theme_name)
@@ -653,7 +636,7 @@ def ask():
             reply = web_search(query)
         return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
 
-    # 4. Knowledge Graph update/query
+    # 4. Knowledge Graph
     graph_update = update_graph(user, user_input)
     if graph_update:
         return jsonify({'reply': reminder_msg + graph_update if reminder_msg else graph_update})
@@ -706,7 +689,7 @@ def ask():
             reply = f'<a href="https://www.youtube.com/results?search_query={song.replace(" ", "+")}" target="_blank">🔍 Search YouTube for "{song}"</a>'
         return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
 
-    # 9. Queue (global, not per‑user for simplicity)
+    # 9. Queue (global)
     global playlist
     if user_input.startswith('add to queue '):
         song = user_input.replace('add to queue ', '').strip()
