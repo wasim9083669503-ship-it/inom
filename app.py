@@ -3,7 +3,8 @@ import re
 import json
 from flask import Flask, request, jsonify, render_template_string
 from openai import OpenAI
-import yt_dlp
+# import yt_dlp moved to function for memory optimization
+
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, db
@@ -137,6 +138,7 @@ def ask_nvidia(prompt, system_message=None):
 
 # ---------- YouTube Pro ----------
 def get_youtube_metadata(song_name):
+    import yt_dlp
     try:
         with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True}) as ydl:
             info = ydl.extract_info(f"ytsearch1:{song_name}", download=False)
@@ -151,6 +153,9 @@ def get_youtube_metadata(song_name):
         return None
 
 playlist = []
+MAX_HISTORY = 20
+conversation_history = []
+
 
 # ---------- Web UI ----------
 HTML = """
@@ -541,10 +546,17 @@ def ask():
     # Build system prompt with memory (Injecting into user prompt as per "Final Fix")
     system_prompt = build_system_prompt(memory)
     
-    # 🥇 FINAL FIX: PROMPT ME MEMORY INJECT KARO
+    # 🥇 FINAL FIX: PROMPT ME MEMORY + HISTORY INJECT KARO
     cloud_memory = memory # We already fetched it above
+    
+    # Format global history for context
+    history_str = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in conversation_history])
+    
     full_user_prompt = f"""
-User Memory:
+Chat History:
+{history_str}
+
+User Memory (Facts):
 {cloud_memory}
 
 User Question:
@@ -552,6 +564,16 @@ User Question:
 """
     # General AI
     ai_reply = ask_nvidia(full_user_prompt, system_prompt)
+    
+    # Add to rolling history
+    conversation_history.append({"role": "user", "content": user_input_raw})
+    conversation_history.append({"role": "assistant", "content": ai_reply})
+    
+    # Trim history
+    if len(conversation_history) > MAX_HISTORY:
+        global conversation_history
+        conversation_history = conversation_history[-MAX_HISTORY:]
+        
     return jsonify({'reply': ai_reply})
 
 if __name__ == '__main__':
