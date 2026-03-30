@@ -277,7 +277,7 @@ def set_theme(user, theme_name):
     return load_theme(user)
 
 # ---------- HTML (Cinematic UI) ----------
-HTML = \"\"\"<!DOCTYPE html>
+HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -582,7 +582,7 @@ HTML = \"\"\"<!DOCTYPE html>
     </script>
 </body>
 </html>
-\"\"\"
+"""
 
 @app.route('/')
 def index():
@@ -614,7 +614,7 @@ def ask():
     reminder_notifications = [(u, msg) for (u, msg) in reminder_notifications if u != user]
     reminder_msg = ""
     if pending:
-        reminder_msg = "🔔 **Proactive Reminder:**\\n" + "\\n".join(pending) + "\\n\\n"
+        reminder_msg = "🔔 **Proactive Reminder:**\n" + "\n".join(pending) + "\n\n"
 
     # 1. Theme
     if user_input.startswith('set theme '):
