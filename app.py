@@ -155,62 +155,315 @@ playlist = []
 # ---------- Web UI ----------
 HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Astra Level 6</title>
-<style>
-body { background: #0a0f1a; color: #e6b91e; font-family: monospace; padding: 20px; }
-.container { max-width: 800px; margin: auto; }
-.chat { background: #1a1f2e; border-radius: 12px; padding: 20px; height: 400px; overflow-y: auto; }
-.msg { margin: 10px 0; padding: 8px 12px; border-radius: 8px; }
-.user { background: #2a2f3e; text-align: right; }
-.bot { background: #0f1420; border-left: 3px solid #e6b91e; }
-input, button { background: #1a1f2e; border: 1px solid #e6b91e; color: #e6b91e; padding: 10px; border-radius: 8px; }
-button { cursor: pointer; }
-button:hover { background: #e6b91e; color: #0a0f1a; }
-</style>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Astra | Cinematic HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1a, #03060c);
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated stars background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 0.8; transform: scale(1); }
+        }
+
+        /* Main container */
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: rgba(15, 20, 30, 0.5);
+            backdrop-filter: blur(12px);
+            border-radius: 32px;
+            border: 1px solid rgba(230, 185, 30, 0.3);
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), 0 0 20px rgba(230,185,30,0.2);
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(230,185,30,0.2);
+            text-align: center;
+        }
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e6b91e, #ffaa33);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px rgba(230,185,30,0.3);
+        }
+        .badge {
+            display: inline-block;
+            margin-top: 8px;
+            background: rgba(230,185,30,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #e6b91e;
+            font-family: 'Orbitron', monospace;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Chat area */
+        .chat {
+            height: 450px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+        }
+        /* Custom scrollbar */
+        .chat::-webkit-scrollbar {
+            width: 5px;
+        }
+        .chat::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .chat::-webkit-scrollbar-thumb {
+            background: #e6b91e;
+            border-radius: 10px;
+        }
+
+        /* Message bubbles */
+        .msg {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: fadeInUp 0.3s ease-out;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #e6b91e, #ffaa33);
+            color: #0a0f1a;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 2px 8px rgba(230,185,30,0.3);
+        }
+        .bot {
+            align-self: flex-start;
+            background: rgba(30, 35, 50, 0.8);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(230,185,30,0.3);
+            color: #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Typing indicator */
+        .typing {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 12px 18px;
+            background: rgba(30, 35, 50, 0.6);
+            border-radius: 20px;
+            width: fit-content;
+            backdrop-filter: blur(4px);
+        }
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: #e6b91e;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        /* Input area */
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid rgba(230,185,30,0.2);
+            display: flex;
+            gap: 12px;
+        }
+        .input-area input {
+            flex: 1;
+            background: rgba(10, 15, 26, 0.6);
+            border: 1px solid rgba(230,185,30,0.4);
+            border-radius: 40px;
+            padding: 14px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            color: #fff;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .input-area input:focus {
+            border-color: #e6b91e;
+            box-shadow: 0 0 12px rgba(230,185,30,0.4);
+            background: rgba(10, 15, 26, 0.8);
+        }
+        .input-area button {
+            background: linear-gradient(135deg, #e6b91e, #ffaa33);
+            border: none;
+            border-radius: 40px;
+            padding: 0 24px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0a0f1a;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(230,185,30,0.3);
+        }
+        .input-area button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(230,185,30,0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                border-radius: 24px;
+            }
+            .msg {
+                max-width: 90%;
+                font-size: 0.85rem;
+            }
+            .header h1 {
+                font-size: 1.4rem;
+            }
+            .input-area input, .input-area button {
+                padding: 12px 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-<h1>🎙️ Astra Level 6</h1>
-<div class="chat" id="chat"></div>
-<div style="display: flex; gap: 10px; margin-top: 10px;">
-<input type="text" id="input" placeholder="Ask Astra..." style="flex:1;">
-<button onclick="send()">Send</button>
-</div>
-</div>
-<script>
-const chat = document.getElementById('chat');
-function add(role, text) {
-    const div = document.createElement('div');
-    div.className = `msg ${role}`;
-    div.innerHTML = `<strong>${role === 'user' ? 'You' : 'Astra'}:</strong><br>${text}`;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-}
-async function send() {
-    const input = document.getElementById('input');
-    const text = input.value.trim();
-    if (!text) return;
-    add('user', text);
-    input.value = '';
-    add('bot', '⌛ Thinking...');
-    try {
-        const res = await fetch('/ask', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({message: text})
+    <div class="stars" id="stars"></div>
+    <div class="container">
+        <div class="header">
+            <h1>▲ ASTRA LEVEL 6</h1>
+            <div class="badge">CINEMATIC INTERFACE | NVIDIA CORE</div>
+        </div>
+        <div class="chat" id="chat"></div>
+        <div class="input-area">
+            <input type="text" id="input" placeholder="Ask Astra..." autocomplete="off">
+            <button onclick="send()">SEND</button>
+        </div>
+    </div>
+
+    <script>
+        // Generate stars background
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 150; i++) {
+            const star = document.createElement('div');
+            star.classList.add('star');
+            const size = Math.random() * 3 + 1;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 5 + 's';
+            star.style.animationDuration = Math.random() * 3 + 2 + 's';
+            starsContainer.appendChild(star);
+        }
+
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('input');
+
+        function addMessage(role, text, isTyping = false) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            if (isTyping) {
+                div.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+            } else {
+                div.innerHTML = text;
+            }
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        let typingDiv = null;
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            input.value = '';
+            // Show typing indicator
+            typingDiv = addMessage('bot', '', true);
+            try {
+                const res = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text})
+                });
+                const data = await res.json();
+                const reply = data.reply || 'No response.';
+                // Remove typing indicator
+                if (typingDiv) typingDiv.remove();
+                addMessage('bot', reply);
+            } catch (err) {
+                if (typingDiv) typingDiv.remove();
+                addMessage('bot', 'Network error. Please try again.');
+            }
+        }
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') send();
         });
-        const data = await res.json();
-        const last = chat.lastChild;
-        chat.removeChild(last);
-        add('bot', data.reply || 'Sorry, no response.');
-    } catch(e) {
-        chat.removeChild(chat.lastChild);
-        add('bot', 'Network error.');
-    }
-}
-document.getElementById('input').addEventListener('keypress', (e) => e.key === 'Enter' && send());
-</script>
+    </script>
 </body>
 </html>
 """
