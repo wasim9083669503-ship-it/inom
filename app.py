@@ -440,28 +440,40 @@ HTML = """
             return div;
         }
 
-        let typingDiv = null;
         async function send() {
             const text = input.value.trim();
             if (!text) return;
             addMessage('user', text);
             input.value = '';
-            // Show typing indicator
-            typingDiv = addMessage('bot', '', true);
-            try {
-                const res = await fetch('/ask', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: text})
-                });
-                const data = await res.json();
-                const reply = data.reply || 'No response.';
-                // Remove typing indicator
-                if (typingDiv) typingDiv.remove();
-                addMessage('bot', reply);
-            } catch (err) {
-                if (typingDiv) typingDiv.remove();
-                addMessage('bot', 'Network error. Please try again.');
+            
+            let retries = 1;
+            let success = false;
+            let reply = null;
+            
+            while (retries >= 0 && !success) {
+                const typingDiv = addMessage('bot', '', true);
+                try {
+                    const res = await fetch('/ask', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({message: text})
+                    });
+                    const data = await res.json();
+                    reply = data.reply || 'No response.';
+                    success = true;
+                    typingDiv.remove();
+                    addMessage('bot', reply);
+                } catch (err) {
+                    typingDiv.remove();
+                    if (retries > 0) {
+                        // Show retrying message
+                        addMessage('bot', '⏳ Retrying...');
+                        retries--;
+                        await new Promise(r => setTimeout(r, 2000)); // wait 2 sec
+                    } else {
+                        addMessage('bot', 'Network error. Please try again.');
+                    }
+                }
             }
         }
 
