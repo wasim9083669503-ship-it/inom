@@ -39,7 +39,13 @@ client = OpenAI(
 )
 
 def get_system_message(first_interaction=False):
-    base = "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. Respond in Hinglish."
+    base = (
+        "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. "
+        "Respond in Hinglish. "
+        "Be direct and concise. "
+        "Do NOT use placeholders like '[insert...]'. "
+        "If you don't know something, say 'Mujhe nahi pata' instead of guessing."
+    )
     if first_interaction:
         return base + " In your very first reply, greet with 'Asalamlekuim Akram'. After that, NEVER use any greeting again."
     else:
@@ -47,7 +53,7 @@ def get_system_message(first_interaction=False):
 
 def ask_nvidia(prompt, system_message=None):
     if not system_message:
-        system_message = get_system_message(first_interaction=True)  # Fallback
+        system_message = get_system_message(first_interaction=False)  # Default to no greeting
     try:
         response = client.chat.completions.create(
             model="meta/llama-4-maverick-17b-128e-instruct",
@@ -262,6 +268,35 @@ def get_weather(city):
     except:
         return "Weather service error."
 
+def extract_weather_query(user_input):
+    """Return city name if input looks like a weather query, else None."""
+    user_lower = user_input.lower()
+    # Common patterns
+    patterns = [
+        r'(?:weather|temperature|temp|mausam|taapmaan)\s+(?:in|of|for)?\s*([a-z\s]+)',
+        r'(?:kolkata|delhi|mumbai|patna|chhapra|bangalore|chennai|hyderabad)\s+(?:weather|temperature|temp|mausam)',
+        r'(?:batao|kya hai)\s+(?:weather|temperature|temp|mausam)\s+(?:in|of|for)?\s*([a-z\s]+)',
+        r'([a-z\s]+)\s+(?:ka\s+)?(?:weather|temperature|temp|mausam)',
+        r'(?:aaj ka|today[‘’]?s)?\s*(?:mausam|weather)\s+(?:in|of|for)?\s*([a-z\s]+)',
+    ]
+    for pat in patterns:
+        match = re.search(pat, user_lower)
+        if match:
+            city = match.group(1) if len(match.groups()) > 0 else match.group(0)
+            # Clean up common filler words
+            city = re.sub(r'\b(in|of|for|ka|ki|ke|hai|batao|kya|hai|aaj)\b', '', city)
+            city = city.strip()
+            if city:
+                return city
+    # Also handle direct city name followed by "temp" etc.
+    if 'temp' in user_lower or 'temperature' in user_lower or 'mausam' in user_lower:
+        # Try to extract a known city name
+        known_cities = ['kolkata', 'delhi', 'mumbai', 'patna', 'chhapra', 'bangalore', 'chennai', 'hyderabad']
+        for city in known_cities:
+            if city in user_lower:
+                return city
+    return None
+
 # ---------- Emotion Detection ----------
 def detect_emotion(text):
     text_lower = text.lower()
@@ -390,9 +425,9 @@ def process_command(user_input, user="akram", from_telegram=False, first_interac
             reply = "Please use format like 'remind me at 5 PM to call mom'."
         return reminder_msg + reply if reminder_msg else reply
 
-    # 8. Weather
-    if user_input.startswith('weather in ') or user_input.startswith('weather '):
-        city = user_input.replace('weather in ', '').replace('weather ', '').strip()
+    # 8. Weather (flexible)
+    city = extract_weather_query(user_input)
+    if city:
         reply = get_weather(city)
         return reminder_msg + reply if reminder_msg else reply
 
