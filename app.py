@@ -11,6 +11,11 @@ from openai import OpenAI
 import yt_dlp
 from dotenv import load_dotenv
 from dateparser import parse
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
+import telegram
+from telegram import Update, Bot
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 load_dotenv()
 
@@ -19,6 +24,8 @@ app = Flask(__name__)
 # ---------- Configuration ----------
 PROFILES_DIR = 'profiles'
 REMINDER_CHECK_INTERVAL = 3600  # seconds
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', 'https://ai-bot-agent.onrender.com/telegram')
 os.makedirs(PROFILES_DIR, exist_ok=True)
 
 # ---------- NVIDIA AI Client ----------
@@ -44,16 +51,28 @@ def ask_nvidia(prompt, system_message=None):
     except Exception as e:
         return f"AI error: {str(e)}"
 
-# ---------- Web Search (DuckDuckGo) ----------
-def web_search(query):
+# ---------- Web Search with Summarization ----------
+def smart_search(query):
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=3))
+            if not results:
+                return "No results found."
+            # Prepare a summary prompt
+            context = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+            prompt = f"Summarize the following search results about '{query}' in 2-3 sentences in Hinglish:\n{context}"
+            summary = ask_nvidia(prompt, system_message="You are a helpful summarizer.")
+            # Provide links
+            links = "\n".join([f"🔗 {r['title']}: {r['href']}" for r in results])
+            return f"{summary}\n\nSource links:\n{links}"
+    except Exception as e:
+        # Fallback to simple DuckDuckGo API
+        return web_search_simple(query)
+
+def web_search_simple(query):
     try:
         url = "https://api.duckduckgo.com/"
-        params = {
-            "q": query,
-            "format": "json",
-            "no_html": 1,
-            "skip_disambig": 1
-        }
+        params = {"q": query, "format": "json", "no_html": 1, "skip_disambig": 1}
         response = requests.get(url, params=params, timeout=10)
         data = response.json()
         if data.get("AbstractText"):
@@ -67,6 +86,26 @@ def web_search(query):
         return f"Sorry, I couldn't find detailed info on '{query}'. You can search directly at https://duckduckgo.com/?q={urllib.parse.quote(query)}"
     except Exception as e:
         return f"Search error: {e}"
+
+# ---------- News Headlines ----------
+def get_news(category="general", country="in"):
+    api_key = os.getenv('NEWS_API_KEY')
+    if not api_key:
+        return "News API key missing. Please set NEWS_API_KEY."
+    url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}"
+    try:
+        resp = requests.get(url)
+        data = resp.json()
+        if data['status'] == 'ok':
+            articles = data['articles'][:5]
+            news_list = []
+            for art in articles:
+                news_list.append(f"📰 {art['title']}\n{art['url']}\n")
+            return "\n".join(news_list) if news_list else "No news found."
+        else:
+            return f"News API error: {data.get('message', 'Unknown')}"
+    except Exception as e:
+        return f"News error: {e}"
 
 # ---------- User Profile Management ----------
 def get_profile_file(user):
@@ -197,7 +236,7 @@ def get_youtube_metadata(song_name):
     except:
         return None
 
-playlist = []  # global queue, not per-user
+playlist = []  # global queue (not per-user)
 
 # ---------- Weather ----------
 def get_weather(city):
@@ -275,6 +314,192 @@ def set_theme(user, theme_name):
     profile["theme"] = theme_name
     save_profile(user, profile)
     return load_theme(user)
+
+# ---------- Telegram Bot ----------
+telegram_bot = None
+telegram_user_map = {}  # chat_id -> profile name
+
+def init_telegram():
+    global telegram_bot
+    if not TELEGRAM_TOKEN:
+        return
+    try:
+        telegram_bot = Bot(token=TELEGRAM_TOKEN)
+        # Load mapping from file
+        mapping_file = os.path.join(PROFILES_DIR, 'telegram_map.json')
+        if os.path.exists(mapping_file):
+            with open(mapping_file, 'r') as f:
+                telegram_user_map.update(json.load(f))
+    except Exception as e:
+        print(f"Telegram init error: {e}")
+
+def save_telegram_map():
+    mapping_file = os.path.join(PROFILES_DIR, 'telegram_map.json')
+    with open(mapping_file, 'w') as f:
+        json.dump(telegram_user_map, f)
+
+@app.route('/telegram', methods=['GET', 'POST'])
+def telegram_webhook():
+    if request.method == 'GET':
+        return "🤖 Astra Telegram Webhook is ACTIVE and waiting for POST requests.", 200
+    
+    if not TELEGRAM_TOKEN or not telegram_bot:
+        return "Telegram bot not configured", 500
+    try:
+        data = request.get_json()
+        update = Update.de_json(data, telegram_bot)
+        if update.message and update.message.text:
+            chat_id = update.message.chat_id
+            user_text = update.message.text.strip()
+            # Get profile for this chat
+            profile_name = telegram_user_map.get(str(chat_id), "akram")
+            # Process using the same logic as web
+            reply = process_command(user_text, profile_name, from_telegram=True)
+            # Remove HTML tags for Telegram if needed, or use parse_mode='HTML'
+            clean_reply = reply.replace('<br>', '\n').replace('<b>', '<b>').replace('</b>', '</b>')
+            clean_reply = re.sub(r'<(?!(?:b|i|a|code|pre|/b|/i|/a|/code|/pre)\b)[^>]+>', '', clean_reply)
+            telegram_bot.send_message(chat_id=chat_id, text=clean_reply, parse_mode='HTML')
+        return "OK", 200
+    except Exception as e:
+        return f"Error: {e}", 500
+
+# ---------- Core Command Processing (shared between web and Telegram) ----------
+def process_command(user_input, user="akram", from_telegram=False):
+    """Process user command and return reply string."""
+    if not user_input.strip():
+        return "Kuch boliye."
+
+    # --- Check for due reminders ---
+    global reminder_notifications
+    pending = [msg for (u, msg) in reminder_notifications if u == user]
+    reminder_notifications = [(u, msg) for (u, msg) in reminder_notifications if u != user]
+    reminder_msg = ""
+    if pending:
+        reminder_msg = "🔔 **Proactive Reminder:**\n" + "\n".join(pending) + "\n\n"
+
+    # --- 1. Switch user ---
+    if user_input.startswith('switch user '):
+        new_user = user_input[12:].strip().lower()
+        if not from_telegram:
+            app.current_user = new_user
+        load_profile(new_user)  # ensure exists
+        return f"Switched to profile: {new_user.capitalize()}"
+
+    # --- 2. Theme change ---
+    if user_input.startswith('set theme '):
+        theme_name = user_input[10:].strip()
+        set_theme(user, theme_name)
+        return f"THEME_CHANGE:{theme_name}" if not from_telegram else f"Theme changed to {theme_name}."
+
+    # --- 3. Morning briefing ---
+    if user_input.lower() in ['good morning', 'morning', 'subah']:
+        reply = morning_briefing(user)
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 4. News ---
+    if 'news' in user_input.lower() or 'khabar' in user_input.lower():
+        reply = get_news()
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 5. Smart search ---
+    if user_input.startswith('search '):
+        query = user_input[7:].strip()
+        if not query:
+            reply = "What would you like to search?"
+        else:
+            reply = smart_search(query)
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 6. Knowledge Graph ---
+    graph_update = update_graph(user, user_input)
+    if graph_update:
+        return reminder_msg + graph_update if reminder_msg else graph_update
+    graph_answer = query_graph(user, user_input)
+    if graph_answer:
+        return reminder_msg + graph_answer if reminder_msg else graph_answer
+
+    # --- 7. Reminders ---
+    if user_input.startswith('remind me '):
+        text = user_input[10:].strip()
+        match = re.search(r'(?:at|on)?\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))', text, re.IGNORECASE)
+        if match:
+            time_str = match.group(1)
+            message = text.replace(match.group(0), '').strip()
+            if message.startswith('to '):
+                message = message[3:].strip()
+            if not message:
+                message = "reminder"
+            success, result = add_reminder(user, time_str, message)
+            reply = result if success else f"Error: {result}"
+        else:
+            reply = "Please use format like 'remind me at 5 PM to call mom'."
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 8. Weather ---
+    if user_input.startswith('weather in ') or user_input.startswith('weather '):
+        city = user_input.replace('weather in ', '').replace('weather ', '').strip()
+        reply = get_weather(city)
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 9. Image generation ---
+    if user_input.startswith('draw ') or user_input.startswith('generate '):
+        prompt = user_input.replace('draw ', '').replace('generate ', '').strip()
+        if not prompt:
+            reply = "What should I draw?"
+        else:
+            img_url = generate_image(prompt)
+            reply = f"🎨 Here's an image for '{prompt}':<br><img src='{img_url}' style='max-width:100%; border-radius:12px;'>"
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 10. YouTube commands ---
+    if user_input.startswith('play song ') or user_input.startswith('play '):
+        song = re.sub(r'^(play song |play )', '', user_input).strip()
+        if not song:
+            return "Which song?"
+        meta = get_youtube_metadata(song)
+        if meta:
+            reply = f'🎵 <b>{meta["title"]}</b><br><img src="{meta["thumbnail"]}" width="200"><br><a href="{meta["url"]}" target="_blank" style="background:#ff0000;color:white;padding:8px 16px;text-decoration:none;border-radius:8px;">▶ Play on YouTube</a>'
+        else:
+            reply = f'<a href="https://www.youtube.com/results?search_query={song.replace(" ", "+")}" target="_blank">🔍 Search YouTube for "{song}"</a>'
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 11. Queue (global) ---
+    if user_input.startswith('add to queue '):
+        song = user_input.replace('add to queue ', '').strip()
+        playlist.append(song)
+        reply = f'✅ Added "{song}". {len(playlist)} in queue.'
+        return reminder_msg + reply if reminder_msg else reply
+    elif user_input == 'show queue':
+        if not playlist:
+            reply = 'Queue empty.'
+        else:
+            reply = '📋 Queue:<br>' + '<br>'.join(f'{i+1}. {s}' for i,s in enumerate(playlist))
+        return reminder_msg + reply if reminder_msg else reply
+    elif user_input == 'play next':
+        if playlist:
+            song = playlist.pop(0)
+            meta = get_youtube_metadata(song)
+            if meta:
+                reply = f'▶ Now playing: <b>{meta["title"]}</b><br><a href="{meta["url"]}" target="_blank">Play</a>'
+            else:
+                reply = f'Now playing: {song} (link not available)'
+        else:
+            reply = 'Queue empty.'
+        return reminder_msg + reply if reminder_msg else reply
+
+    # --- 12. Emotion + General AI ---
+    emotion = detect_emotion(user_input)
+    emotion_prefix = ""
+    if emotion == 'sad':
+        emotion_prefix = "I'm here for you. "
+    elif emotion == 'angry':
+        emotion_prefix = "Let's calm down. "
+    elif emotion == 'happy':
+        emotion_prefix = "That's great! "
+
+    ai_reply = ask_nvidia(user_input)
+    final_reply = emotion_prefix + (reminder_msg + ai_reply if reminder_msg else ai_reply)
+    return final_reply
 
 # ---------- HTML (Cinematic UI) ----------
 HTML = """<!DOCTYPE html>
@@ -475,6 +700,12 @@ HTML = """<!DOCTYPE html>
         }
     </style>
     <script>
+        // Better error reporting for mobile
+        window.onerror = function(msg, url, line) {
+            console.error("Global error: " + msg + " at " + line);
+            return false;
+        };
+
         // Stars generation
         window.addEventListener('load', () => {
             const starsContainer = document.getElementById('stars');
@@ -497,7 +728,7 @@ HTML = """<!DOCTYPE html>
     <div class="stars" id="stars"></div>
     <div class="container">
         <div class="header">
-            <h1>▲ ASTRA LEVEL 7</h1>
+            <h1>▲ ASTRA LEVEL 8</h1>
             <div class="badge">CINEMATIC INTERFACE | NVIDIA CORE</div>
         </div>
         <div class="chat" id="chat"></div>
@@ -559,6 +790,10 @@ HTML = """<!DOCTYPE html>
 
         let recognition = null;
         function startVoice() {
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                alert("🎤 Voice input requires HTTPS. Please use a secure connection.");
+                return;
+            }
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 addMessage('bot', 'Sorry, your browser does not support voice input.');
                 return;
@@ -567,12 +802,23 @@ HTML = """<!DOCTYPE html>
             recognition = new SpeechRecognition();
             recognition.lang = 'hi-IN';
             recognition.interimResults = false;
+            recognition.onstart = () => {
+                input.placeholder = "Listening...";
+                document.querySelector('button[onclick="startVoice()"]').style.boxShadow = "0 0 15px #e6b91e";
+            };
             recognition.onresult = (event) => {
                 const text = event.results[0][0].transcript;
                 input.value = text;
                 send();
             };
-            recognition.onerror = () => addMessage('bot', 'Voice recognition error.');
+            recognition.onerror = (e) => {
+                console.error("Speech error:", e);
+                addMessage('bot', 'Voice error: ' + e.error);
+            };
+            recognition.onend = () => {
+                input.placeholder = "Ask Astra...";
+                document.querySelector('button[onclick="startVoice()"]').style.boxShadow = "none";
+            };
             recognition.start();
         }
 
@@ -596,137 +842,19 @@ def ask():
     if not user_input:
         return jsonify({'reply': 'Kuch boliye.'})
 
-    # User switching
-    global current_user
-    if not hasattr(app, 'current_user'):
-        app.current_user = "akram"
-    if user_input.startswith('switch user '):
-        new_user = user_input[12:].strip().lower()
-        app.current_user = new_user
-        load_profile(new_user)  # ensure profile exists
-        return jsonify({'reply': f"Switched to profile: {new_user.capitalize()}"})
-
-    user = app.current_user
-
-    # Proactive reminders
-    global reminder_notifications
-    pending = [msg for (u, msg) in reminder_notifications if u == user]
-    reminder_notifications = [(u, msg) for (u, msg) in reminder_notifications if u != user]
-    reminder_msg = ""
-    if pending:
-        reminder_msg = "🔔 **Proactive Reminder:**\n" + "\n".join(pending) + "\n\n"
-
-    # 1. Theme
-    if user_input.startswith('set theme '):
-        theme_name = user_input[10:].strip()
-        theme = set_theme(user, theme_name)
+    user = getattr(app, 'current_user', 'akram')
+    reply = process_command(user_input, user, from_telegram=False)
+    
+    # Handle theme change for web specifically
+    if reply.startswith("THEME_CHANGE:"):
+        theme_name = reply[13:]
+        theme = load_theme(user)
         return jsonify({'reply': f"Theme changed to {theme_name}.", 'theme': theme})
+    
+    return jsonify({'reply': reply})
 
-    # 2. Morning briefing
-    if user_input.lower() in ['good morning', 'morning', 'subah']:
-        reply = morning_briefing(user)
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 3. Web search
-    if user_input.startswith('search '):
-        query = user_input[7:].strip()
-        if not query:
-            reply = "What would you like to search?"
-        else:
-            reply = web_search(query)
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 4. Knowledge Graph
-    graph_update = update_graph(user, user_input)
-    if graph_update:
-        return jsonify({'reply': reminder_msg + graph_update if reminder_msg else graph_update})
-    graph_answer = query_graph(user, user_input)
-    if graph_answer:
-        return jsonify({'reply': reminder_msg + graph_answer if reminder_msg else graph_answer})
-
-    # 5. Reminders
-    if user_input.startswith('remind me '):
-        text = user_input[10:].strip()
-        match = re.search(r'(?:at|on)?\\s*(\\d{1,2}(?::\\d{2})?\\s*(?:am|pm))', text, re.IGNORECASE)
-        if match:
-            time_str = match.group(1)
-            message = text.replace(match.group(0), '').strip()
-            if message.startswith('to '):
-                message = message[3:].strip()
-            if not message:
-                message = "reminder"
-            success, result = add_reminder(user, time_str, message)
-            reply = result if success else f"Error: {result}"
-        else:
-            reply = "Please use format like 'remind me at 5 PM to call mom'."
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 6. Weather
-    if user_input.startswith('weather in ') or user_input.startswith('weather '):
-        city = user_input.replace('weather in ', '').replace('weather ', '').strip()
-        reply = get_weather(city)
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 7. Image generation
-    if user_input.startswith('draw ') or user_input.startswith('generate '):
-        prompt = user_input.replace('draw ', '').replace('generate ', '').strip()
-        if not prompt:
-            reply = "What should I draw?"
-        else:
-            img_url = generate_image(prompt)
-            reply = f"🎨 Here's an image for '{prompt}':<br><img src='{img_url}' style='max-width:100%; border-radius:12px;'>"
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 8. YouTube commands
-    if user_input.startswith('play song ') or user_input.startswith('play '):
-        song = re.sub(r'^(play song |play )', '', user_input).strip()
-        if not song:
-            return jsonify({'reply': 'Which song?'})
-        meta = get_youtube_metadata(song)
-        if meta:
-            reply = f'🎵 <b>{meta["title"]}</b><br><img src="{meta["thumbnail"]}" width="200"><br><a href="{meta["url"]}" target="_blank" style="background:#ff0000;color:white;padding:8px 16px;text-decoration:none;border-radius:8px;">▶ Play on YouTube</a>'
-        else:
-            reply = f'<a href="https://www.youtube.com/results?search_query={song.replace(" ", "+")}" target="_blank">🔍 Search YouTube for "{song}"</a>'
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 9. Queue (global)
-    global playlist
-    if user_input.startswith('add to queue '):
-        song = user_input.replace('add to queue ', '').strip()
-        playlist.append(song)
-        reply = f'✅ Added "{song}". {len(playlist)} in queue.'
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-    elif user_input == 'show queue':
-        if not playlist:
-            reply = 'Queue empty.'
-        else:
-            reply = '📋 Queue:<br>' + '<br>'.join(f'{i+1}. {s}' for i,s in enumerate(playlist))
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-    elif user_input == 'play next':
-        if playlist:
-            song = playlist.pop(0)
-            meta = get_youtube_metadata(song)
-            if meta:
-                reply = f'▶ Now playing: <b>{meta["title"]}</b><br><a href="{meta["url"]}" target="_blank">Play</a>'
-            else:
-                reply = f'Now playing: {song} (link not available)'
-        else:
-            reply = 'Queue empty.'
-        return jsonify({'reply': reminder_msg + reply if reminder_msg else reply})
-
-    # 10. Emotion + General AI
-    emotion = detect_emotion(user_input)
-    emotion_prefix = ""
-    if emotion == 'sad':
-        emotion_prefix = "I'm here for you. "
-    elif emotion == 'angry':
-        emotion_prefix = "Let's calm down. "
-    elif emotion == 'happy':
-        emotion_prefix = "That's great! "
-
-    ai_reply = ask_nvidia(user_input)
-    final_reply = emotion_prefix + (reminder_msg + ai_reply if reminder_msg else ai_reply)
-    return jsonify({'reply': final_reply})
+# ---------- Initialize Telegram ----------
+init_telegram()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
