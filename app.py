@@ -36,7 +36,13 @@ client = OpenAI(
 
 def ask_nvidia(prompt, system_message=None):
     if not system_message:
-        system_message = "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. Respond in Hinglish. When greeting, always say 'Asalamlekuim Akram' instead of 'Namaste'."
+        system_message = (
+            "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. "
+            "Respond in Hinglish. "
+            "ONLY use the greeting 'Asalamlekuim Akram' in your very first reply. "
+            "After that, give direct, concise answers without repeating the greeting. "
+            "Keep responses brief and useful."
+        )
     try:
         response = client.chat.completions.create(
             model="meta/llama-4-maverick-17b-128e-instruct",
