@@ -478,7 +478,18 @@ def process_command(user_input, user="akram", from_telegram=False, first_interac
             reply = 'Queue empty.'
         return reminder_msg + reply if reminder_msg else reply
 
-    # 12. Emotion + General AI
+    # 12. Train Info (Free Web Search)
+    if user_input.startswith('train '):
+        parts = user_input.split()
+        if len(parts) < 2:
+            reply = "Please provide a train number. Example: `train 12951`"
+        else:
+            train_no = parts[1].strip()
+            query = f"Indian Railways train {train_no} schedule route and status"
+            reply = smart_search(query)
+        return reminder_msg + reply if reminder_msg else reply
+
+    # 13. Emotion + General AI
     emotion = detect_emotion(user_input)
     emotion_prefix = ""
     if emotion == 'sad':
