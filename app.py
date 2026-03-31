@@ -6,7 +6,7 @@ import urllib.parse
 import threading
 import time
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, session
 from openai import OpenAI
 import yt_dlp
 from dotenv import load_dotenv
@@ -20,6 +20,10 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'astra-secret-888-chhapra')
+
+# ---------- Interaction Tracking ----------
+telegram_greeted = {}  # chat_id -> bool
 
 # ---------- Configuration ----------
 PROFILES_DIR = 'profiles'
@@ -34,15 +38,16 @@ client = OpenAI(
     api_key=os.getenv("NVIDIA_API_KEY")
 )
 
+def get_system_message(first_interaction=False):
+    base = "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. Respond in Hinglish."
+    if first_interaction:
+        return base + " In your very first reply, greet with 'Asalamlekuim Akram'. After that, NEVER use any greeting again."
+    else:
+        return base + " Do NOT include any greeting like 'Asalamlekuim Akram' in your response. Give a direct, concise answer."
+
 def ask_nvidia(prompt, system_message=None):
     if not system_message:
-        system_message = (
-            "You are Astra, a helpful AI assistant for Akram from Chhapra, Bihar. "
-            "Respond in Hinglish. "
-            "ONLY use the greeting 'Asalamlekuim Akram' in your very first reply. "
-            "After that, give direct, concise answers without repeating the greeting. "
-            "Keep responses brief and useful."
-        )
+        system_message = get_system_message(first_interaction=True)  # Fallback
     try:
         response = client.chat.completions.create(
             model="meta/llama-4-maverick-17b-128e-instruct",
@@ -318,7 +323,7 @@ def set_theme(user, theme_name):
     return load_theme(user)
 
 # ---------- Core Command Processing (shared) ----------
-def process_command(user_input, user="akram", from_telegram=False):
+def process_command(user_input, user="akram", from_telegram=False, first_interaction=False):
     if not user_input.strip():
         return "Kuch boliye."
 
@@ -448,7 +453,7 @@ def process_command(user_input, user="akram", from_telegram=False):
     elif emotion == 'happy':
         emotion_prefix = "That's great! "
 
-    ai_reply = ask_nvidia(user_input)
+    ai_reply = ask_nvidia(user_input, system_message=get_system_message(first_interaction))
     final_reply = emotion_prefix + (reminder_msg + ai_reply if reminder_msg else ai_reply)
     return final_reply
 
@@ -792,8 +797,18 @@ def ask():
     if not user_input:
         return jsonify({'reply': 'Kuch boliye.'})
 
+    if user_input.startswith('switch user '):
+        new_user = user_input[12:].strip().lower()
+        app.current_user = new_user
+        load_profile(new_user)
+        session['greeted'] = False
+        return jsonify({'reply': f"Switched to profile: {new_user.capitalize()}"})
+
     user = getattr(app, 'current_user', 'akram')
-    reply = process_command(user_input, user, from_telegram=False)
+    first = not session.get('greeted', False)
+    if first:
+        session['greeted'] = True
+    reply = process_command(user_input, user, from_telegram=False, first_interaction=first)
     
     # Handle theme change (extra check for web response)
     if reply.startswith("THEME_CHANGE:"):
@@ -817,7 +832,11 @@ def telegram_webhook():
     if not user_text:
         return "OK", 200
 
-    reply = process_command(user_text, user="akram", from_telegram=True)
+    first = not telegram_greeted.get(chat_id, False)
+    if first:
+        telegram_greeted[chat_id] = True
+        
+    reply = process_command(user_text, user="akram", from_telegram=True, first_interaction=first)
 
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     if token:
