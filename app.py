@@ -417,6 +417,34 @@ HTML = """<!DOCTYPE html>
     </style>
     <script>
         window.addEventListener('load', () => {
+            addMessage('bot', `🖖 **Assalamalekum Akram Bhai!** 🤖
+
+✨ **Astra Level 9 - Anti-Gravity HUD** ✨
+
+━━━━━━━━━━━━━━━━━━━━━
+📚 **Study Mode**
+   • "start study 25 min" - Timer + Lofi Music
+   • "study status" - Check time left
+   • "stop study" - Stop timer
+
+📈 **Stocks & Crypto**
+   • "stock reliance" / "stock nvidia"
+   • "bitcoin price" / "ethereum price"
+
+🎵 **Music & YouTube**
+   • "play song [name]" - Mini player
+   • "play lofi" / "play dhun"
+
+🌤️ **Weather & News**
+   • "weather [city]"
+   • "news [topic]" / "top news"
+
+🎤 **Voice Input**
+   • Tap the 🎤 button and speak
+
+━━━━━━━━━━━━━━━━━━━━━
+💡 *What can I help you with today?*
+`);
             const starsContainer = document.getElementById('stars');
             for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
