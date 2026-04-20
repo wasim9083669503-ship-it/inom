@@ -344,48 +344,70 @@ HTML = """<!DOCTYPE html>
             transform: scale(1.02);
             box-shadow: 0 4px 12px rgba(0,255,157,0.5);
         }
+        /* Timer Widget - Bottom Right */
         #studyWidget {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(0,255,157,0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 12px;
+            background: rgba(0, 255, 157, 0.15);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 12px 16px;
             border: 1px solid #00ff9d;
             display: none;
-            z-index: 100;
+            z-index: 1000;
             font-family: 'Orbitron', monospace;
-            touch-action: manipulation;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            min-width: 140px;
+            text-align: center;
         }
         #studyTimer { font-size: 24px; font-weight: bold; color: #fff; }
+
+        /* Music Player - Bottom Left */
         #musicPlayer {
             position: fixed;
             bottom: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
             border-radius: 16px;
             border: 1px solid #00ff9d;
             display: none;
-            z-index: 100;
+            z-index: 1000;
             overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            width: 320px;
         }
-        #musicPlayer iframe { width: 300px; height: 170px; border: none; }
+
+        #musicPlayer iframe {
+            width: 100%;
+            height: 180px;
+            border: none;
+        }
+
         .close-music {
             position: absolute;
-            top: 5px;
-            right: 5px;
+            top: 8px;
+            right: 8px;
             background: #ff00e5;
             border: none;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             color: white;
             cursor: pointer;
-            font-size: 12px;
-            line-height: 1;
-            touch-action: manipulation;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .close-music:hover {
+            background: #ff3366;
+            transform: scale(1.05);
         }
 
         /* Mobile Responsive */
@@ -400,9 +422,35 @@ HTML = """<!DOCTYPE html>
             .input-area { padding: 12px; gap: 8px; }
             .input-area input { padding: 12px 16px; font-size: 16px; }
             .input-area button { padding: 0 16px; font-size: 0.8rem; min-height: 44px; }
-            #studyWidget { bottom: 10px; right: 10px; padding: 8px; }
-            #studyTimer { font-size: 18px; }
-            #musicPlayer iframe { width: 220px; height: 130px; }
+            
+            #studyWidget {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px 12px;
+                min-width: 110px;
+            }
+            
+            #studyTimer {
+                font-size: 18px;
+            }
+            
+            #musicPlayer {
+                bottom: 10px;
+                left: 10px;
+                width: 260px;
+            }
+            
+            #musicPlayer iframe {
+                height: 150px;
+            }
+            
+            .close-music {
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+                top: 5px;
+                right: 5px;
+            }
             .typing span { width: 6px; height: 6px; }
         }
 
@@ -412,7 +460,27 @@ HTML = """<!DOCTYPE html>
             .msg { max-width: 95%; font-size: 0.8rem; }
             .input-area input { padding: 10px 12px; }
             .input-area button { padding: 0 12px; font-size: 0.75rem; }
-            #musicPlayer iframe { width: 180px; height: 110px; }
+            
+            #studyWidget {
+                bottom: 8px;
+                right: 8px;
+                padding: 6px 10px;
+                min-width: 95px;
+            }
+            
+            #studyTimer {
+                font-size: 16px;
+            }
+            
+            #musicPlayer {
+                bottom: 8px;
+                left: 8px;
+                width: 220px;
+            }
+            
+            #musicPlayer iframe {
+                height: 130px;
+            }
         }
     </style>
     <script>
