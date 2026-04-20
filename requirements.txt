@@ -4,6 +4,7 @@ openai
 yt-dlp
 python-dotenv
 firebase-admin
+PyJWT
 requests
 beautifulsoup4
 pytz
@@ -11,3 +12,9 @@ dateparser
 python-telegram-bot==20.7
 duckduckgo-search
 requests-html
+speechrecognition
+pyttsx3
+pywhatkit
+pyautogui
+gTTS
+pygame
