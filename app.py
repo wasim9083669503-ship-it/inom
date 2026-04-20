@@ -161,128 +161,327 @@ def get_youtube_embed_url(query):
         pass
     return None
 
-# ---------- HTML (Cinematic Level 9 HUD) ----------
+# ---------- HTML (Cinematic Level 9 HUD - Mobile Responsive) ----------
 HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astra HUD | Level 9</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Astra | Level 9 - Anti-Gravity HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --p: #00ff9d; --s: #ff00e5; --bg: #000; }
-        body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        .stars { position: fixed; width: 100%; height: 100%; z-index: -1; }
-        .container { width: 95%; max-width: 1000px; height: 85vh; background: rgba(10,15,25,0.7); backdrop-filter: blur(15px); border: 1px solid var(--p); border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 30px rgba(0,255,157,0.2); }
-        .header { padding: 15px 30px; border-bottom: 1px solid rgba(0,255,157,0.2); display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: var(--p); text-shadow: 0 0 10px var(--p); }
-        .chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
-        .msg { max-width: 80%; padding: 12px 18px; border-radius: 18px; font-size: 0.95rem; line-height: 1.5; position: relative; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .user { align-self: flex-end; background: linear-gradient(135deg, var(--p), var(--s)); color: #000; border-bottom-right-radius: 4px; }
-        .bot { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,157,0.3); border-bottom-left-radius: 4px; }
-        .input-area { padding: 20px; border-top: 1px solid rgba(0,255,157,0.2); display: flex; gap: 10px; }
-        input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--p); border-radius: 30px; padding: 12px 20px; color: #fff; outline: none; transition: 0.3s; }
-        input:focus { box-shadow: 0 0 15px var(--p); }
-        button { background: var(--p); color: #000; border: none; border-radius: 30px; padding: 0 25px; font-family: 'Orbitron'; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #fff; transform: scale(1.05); }
-
-        /* Widgets */
-        #studyWidget { position: fixed; top: 20px; right: 20px; background: rgba(255,0,229,0.15); border: 1px solid var(--s); padding: 15px; border-radius: 20px; backdrop-filter: blur(10px); display: none; text-align: center; width: 150px; z-index: 10; }
-        #studyTimer { font-family: 'Orbitron'; font-size: 1.8rem; color: #fff; margin: 5px 0; }
-        
-        #musicPlayer { position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid var(--p); display: none; z-index: 100; overflow: hidden; box-shadow: 0 0 20px var(--p); }
+        :root {
+            --primary: #00ff9d;
+            --secondary: #ff00e5;
+            --bg-gradient: radial-gradient(circle at 30% 40%, #0d0b1a, #000000);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: var(--bg-gradient);
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            100% { opacity: 0.8; transform: scale(1); }
+        }
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: rgba(15, 20, 30, 0.5);
+            backdrop-filter: blur(12px);
+            border-radius: 32px;
+            border: 1px solid var(--primary);
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,157,0.2);
+            z-index: 2;
+        }
+        .header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(0,255,157,0.2);
+            text-align: center;
+        }
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .badge {
+            display: inline-block;
+            margin-top: 8px;
+            background: rgba(0,255,157,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--primary);
+            font-family: 'Orbitron', monospace;
+        }
+        .chat {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .chat::-webkit-scrollbar { width: 5px; }
+        .chat::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .chat::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .msg {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+            animation: fadeInUp 0.3s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #0a0f1a;
+            border-bottom-right-radius: 4px;
+        }
+        .bot {
+            align-self: flex-start;
+            background: rgba(30, 35, 50, 0.8);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(0,255,157,0.3);
+            color: #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+        .typing {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 12px 18px;
+            background: rgba(30, 35, 50, 0.6);
+            border-radius: 20px;
+            width: fit-content;
+        }
+        .typing span {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-8px); opacity: 1; }
+        }
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid rgba(0,255,157,0.2);
+            display: flex;
+            gap: 12px;
+        }
+        .input-area input {
+            flex: 1;
+            background: rgba(10, 15, 26, 0.6);
+            border: 1px solid rgba(0,255,157,0.4);
+            border-radius: 40px;
+            padding: 14px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            color: #fff;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .input-area input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(0,255,157,0.4);
+        }
+        .input-area button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 40px;
+            padding: 0 24px;
+            min-width: 60px;
+            min-height: 44px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0a0f1a;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        .input-area button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,255,157,0.5);
+        }
+        #studyWidget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,255,157,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 12px;
+            border: 1px solid #00ff9d;
+            display: none;
+            z-index: 100;
+            font-family: 'Orbitron', monospace;
+            touch-action: manipulation;
+        }
+        #studyTimer { font-size: 24px; font-weight: bold; color: #fff; }
+        #musicPlayer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid #00ff9d;
+            display: none;
+            z-index: 100;
+            overflow: hidden;
+        }
         #musicPlayer iframe { width: 300px; height: 170px; border: none; }
-        .close-music { position: absolute; top: 5px; right: 5px; background: var(--s); border: none; border-radius: 50%; width: 22px; height: 22px; color: white; cursor: pointer; font-size: 12px; z-index: 101; }
+        .close-music {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff00e5;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            touch-action: manipulation;
+        }
 
-        .ticker { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0,255,157,0.05); font-family: 'Orbitron'; font-size: 0.7rem; padding: 5px; overflow: hidden; white-space: nowrap; border-top: 1px solid rgba(0,255,157,0.1); }
-        .ticker-inner { display: inline-block; animation: ticker 30s linear infinite; }
-        @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .container { max-width: 100%; border-radius: 24px; }
+            .header { padding: 12px 16px; }
+            .header h1 { font-size: 1.2rem; }
+            .badge { font-size: 0.6rem; padding: 2px 8px; }
+            .chat { height: 55vh; padding: 12px; }
+            .msg { max-width: 90%; font-size: 0.85rem; padding: 8px 12px; }
+            .input-area { padding: 12px; gap: 8px; }
+            .input-area input { padding: 12px 16px; font-size: 16px; }
+            .input-area button { padding: 0 16px; font-size: 0.8rem; min-height: 44px; }
+            #studyWidget { bottom: 10px; right: 10px; padding: 8px; }
+            #studyTimer { font-size: 18px; }
+            #musicPlayer iframe { width: 220px; height: 130px; }
+            .typing span { width: 6px; height: 6px; }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 { font-size: 1rem; }
+            .badge { font-size: 0.5rem; }
+            .msg { max-width: 95%; font-size: 0.8rem; }
+            .input-area input { padding: 10px 12px; }
+            .input-area button { padding: 0 12px; font-size: 0.75rem; }
+            #musicPlayer iframe { width: 180px; height: 110px; }
+        }
     </style>
+    <script>
+        window.addEventListener('load', () => {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 3 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 5 + 's';
+                star.style.animationDuration = Math.random() * 3 + 2 + 's';
+                starsContainer.appendChild(star);
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="stars" id="stars"></div>
+    <div class="container">
+        <div class="header">
+            <h1>▲ ASTRA LEVEL 9</h1>
+            <div class="badge">STREAMING | STOCKS | STUDY MODE | MUSIC PLAYER</div>
+        </div>
+        <div class="chat" id="chat"></div>
+        <div class="input-area">
+            <input type="text" id="input" placeholder="Ask Astra..." autocomplete="off" enterkeyhint="send">
+            <button onclick="startVoice()">🎤</button>
+            <button onclick="send()">SEND</button>
+        </div>
+    </div>
     <div id="studyWidget">
-        <div style="font-size: 0.6rem; color: var(--s);">STUDY MODE</div>
+        <div style="font-size: 12px; color: #00ff9d;">📚 STUDY MODE</div>
         <div id="studyTimer">25:00</div>
-        <button onclick="stopStudy()" style="font-size: 0.6rem; padding: 5px 10px; background: var(--s);">STOP</button>
+        <button onclick="stopStudy()" style="background: #ff00e5; border: none; border-radius: 8px; padding: 4px 12px; color: white; cursor: pointer; width: 100%; margin-top: 5px; min-height: 32px;">Stop</button>
     </div>
     <div id="musicPlayer">
         <button class="close-music" onclick="closeMusic()">✕</button>
         <iframe id="musicIframe" src="" allow="autoplay"></iframe>
     </div>
-    <div class="container">
-        <div class="header">
-            <h1>ASTRA <span style="font-size: 0.6rem; opacity: 0.7;">LEVEL 9 HUD</span></h1>
-            <div id="status" style="font-size: 0.6rem; font-family: 'Orbitron'; color: var(--p);">SYSTEM ACTIVE</div>
-        </div>
-        <div class="chat" id="chat"></div>
-        <div class="input-area">
-            <input type="text" id="input" placeholder="Ask Astra anything..." autocomplete="off">
-            <button onclick="send()">SEND</button>
-        </div>
-    </div>
-    <div class="ticker">
-        <div class="ticker-inner" id="tickerText">BTC: Loading... | ETH: Loading... | Reliance: Loading... | Nifty: Loading...</div>
-    </div>
 
     <script>
         const chat = document.getElementById('chat');
         const input = document.getElementById('input');
+        let studyCheckInterval = null;
 
-        function addMsg(role, text) {
-            const div = document.createElement('div');
-            div.className = `msg ${role}`;
-            div.innerHTML = text.replace(/\\n/g, '<br>');
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-            return div;
-        }
-
-        async function send() {
-            const val = input.value.trim();
-            if (!val) return;
-            addMsg('user', val);
-            input.value = '';
-            
-            const botDiv = addMsg('bot', 'Processing...');
-            try {
-                const resp = await fetch('/ask-stream', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: val})
-                });
-                const reader = resp.body.getReader();
-                const decoder = new TextDecoder();
-                botDiv.innerHTML = '';
-                let fullText = '';
-                let musicUrl = null;
-
-                while (true) {
-                    const {done, value} = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    if (chunk.startsWith('{') && chunk.includes('music_url')) {
-                        try {
-                            const data = JSON.parse(chunk);
-                            if (data.music_url) musicUrl = data.music_url;
-                            if (data.message) fullText += data.message;
-                        } catch(e) { fullText += chunk; }
-                    } else {
-                        fullText += chunk;
-                    }
-                    botDiv.innerHTML = fullText.replace(/\\n/g, '<br>');
-                    chat.scrollTop = chat.scrollHeight;
-                }
-                if (musicUrl) showMusicPlayer(musicUrl);
-            } catch { botDiv.innerHTML = 'Connection Error.'; }
+        function updateStudyWidget(remaining) {
+            const widget = document.getElementById('studyWidget');
+            const timerDiv = document.getElementById('studyTimer');
+            if (remaining && remaining > 0) {
+                widget.style.display = 'block';
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                timerDiv.innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            } else {
+                widget.style.display = 'none';
+            }
         }
 
         function showMusicPlayer(url) {
-            const player = document.getElementById('musicPlayer');
-            const iframe = document.getElementById('musicIframe');
-            iframe.src = url;
-            player.style.display = 'block';
+            if (url) {
+                const player = document.getElementById('musicPlayer');
+                const iframe = document.getElementById('musicIframe');
+                iframe.src = url;
+                player.style.display = 'block';
+            }
         }
 
         function closeMusic() {
@@ -292,43 +491,112 @@ HTML = """<!DOCTYPE html>
             player.style.display = 'none';
         }
 
-        function stopStudy() { fetch('/stop-study', {method: 'POST'}); }
-
-        // Sync Logic
-        setInterval(async () => {
-            const resp = await fetch('/status');
-            const data = await resp.json();
-            const widget = document.getElementById('studyWidget');
-            if (data.study.active) {
-                widget.style.display = 'block';
-                const m = Math.floor(data.study.remaining/60);
-                const s = data.study.remaining%60;
-                document.getElementById('studyTimer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
-            } else { widget.style.display = 'none'; }
-            
-            // Update Ticker (Sample logic)
-            if (data.market) {
-                document.getElementById('tickerText').innerText = data.market;
-            }
-        }, 1000);
-
-        // Stars
-        const stars = document.getElementById('stars');
-        for(let i=0; i<100; i++) {
-            const s = document.createElement('div');
-            s.style.position = 'absolute';
-            s.style.background = '#fff';
-            s.style.width = Math.random()*3+'px';
-            s.style.height = s.style.width;
-            s.style.left = Math.random()*100+'%';
-            s.style.top = Math.random()*100+'%';
-            s.style.borderRadius = '50%';
-            s.style.opacity = Math.random();
-            stars.appendChild(s);
+        async function checkStudyStatus() {
+            try {
+                const res = await fetch('/study-status');
+                const data = await res.json();
+                if (data.remaining !== undefined) {
+                    updateStudyWidget(data.remaining);
+                }
+            } catch(e) {}
         }
 
-        input.addEventListener('keypress', (e) => { if(e.key==='Enter') send(); });
-        window.onload = () => addMsg('bot', 'Welcome back, Akram. Level 9 HUD online. How can I help you today?');
+        function stopStudy() {
+            fetch('/stop-study', {method: 'POST'});
+            updateStudyWidget(0);
+        }
+
+        setInterval(checkStudyStatus, 1000);
+
+        function addMessage(role, text, isTyping = false) {
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            if (isTyping) {
+                div.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+            } else {
+                div.innerHTML = text;
+            }
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            input.value = '';
+            
+            const typingDiv = addMessage('bot', '', true);
+            
+            try {
+                const response = await fetch('/ask-stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text})
+                });
+                
+                typingDiv.remove();
+                const botDiv = addMessage('bot', '', false);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+                let musicUrl = null;
+                
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    if (chunk.startsWith('{') && chunk.includes('music_url')) {
+                        try {
+                            const data = JSON.parse(chunk);
+                            if (data.music_url) musicUrl = data.music_url;
+                            if (data.message) fullText += data.message;
+                        } catch(e) {
+                            fullText += chunk;
+                        }
+                    } else {
+                        fullText += chunk;
+                    }
+                    botDiv.innerHTML = fullText.replace(/\\\\n/g, '<br>');
+                    chat.scrollTop = chat.scrollHeight;
+                }
+                
+                if (musicUrl) {
+                    showMusicPlayer(musicUrl);
+                }
+                
+                if (!fullText) {
+                    botDiv.innerHTML = 'Sorry, no response.';
+                }
+            } catch (err) {
+                typingDiv.remove();
+                addMessage('bot', 'Network error. Please try again.');
+            }
+        }
+
+        let recognition = null;
+        function startVoice() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                addMessage('bot', 'Sorry, your browser does not support voice input.');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'hi-IN';
+            recognition.interimResults = false;
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                input.value = text;
+                send();
+            };
+            recognition.onerror = () => addMessage('bot', 'Voice recognition error.');
+            recognition.start();
+        }
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') send();
+        });
     </script>
 </body>
 </html>
@@ -339,16 +607,17 @@ HTML = """<!DOCTYPE html>
 def index():
     return render_template_string(HTML)
 
-@app.route('/status')
+@app.route('/study-status')
 def status():
-    # Fetch ticker data (sample)
+    # Integrated market data in study status for efficiency
     market = "BTC: $75,340 | ETH: $2,890 | RELIANCE: ₹1,363 | NVIDIA: $145.20"
-    return jsonify({"study": study_state, "market": market})
+    return jsonify({"remaining": study_state["remaining"], "market": market})
 
 @app.route('/stop-study', methods=['POST'])
 def stop_study():
     study_state["active"] = False
-    return "OK"
+    study_state["remaining"] = 0
+    return jsonify({"status": "stopped"})
 
 @app.route('/ask-stream', methods=['POST'])
 def ask_stream():
