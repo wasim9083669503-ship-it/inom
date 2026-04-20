@@ -22,16 +22,14 @@ sys.modules['anthropic'] = None
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'astra-secret-888-chhapra')
+app.secret_key = os.getenv('SECRET_KEY', 'astra-level-9-super-secret')
 
 # ---------- Configuration ----------
 PROFILES_DIR = 'profiles'
-REMINDER_CHECK_INTERVAL = 3600
 os.makedirs(PROFILES_DIR, exist_ok=True)
 
 # ---------- Simple TTL Cache ----------
 def ttl_cache(seconds):
-    """Time-based cache decorator"""
     def decorator(func):
         cache = {}
         @wraps(func)
@@ -53,10 +51,8 @@ client = OpenAI(
 )
 
 def ask_nvidia_stream(prompt, system_message=None):
-    """Streaming version for anti-gravity feel"""
     if not system_message:
-        system_message = "You are Astra, a highly intelligent and helpful AI assistant for Akram from Chhapra, Bihar. Respond in Hinglish. Be direct, concise, and smart. Greet only in the first turn if instructed."
-    
+        system_message = "You are Astra, a Level 9 AI assistant. You are smart, direct, and speak in Hinglish. You help Akram with stocks, studies, and news."
     try:
         response = client.chat.completions.create(
             model="meta/llama-4-maverick-17b-128e-instruct",
@@ -65,453 +61,224 @@ def ask_nvidia_stream(prompt, system_message=None):
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=500,
+            max_tokens=800,
             stream=True
         )
         for chunk in response:
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     except Exception as e:
-        yield f"AI error: {str(e)}"
+        yield f"AI Error: {str(e)}"
 
-# ---------- Cached Weather ----------
-@ttl_cache(600)  # Cache for 10 minutes
-def get_weather(city):
-    api_key = os.getenv('WEATHER_API_KEY')
-    if not api_key:
-        return "Weather API key missing."
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+# ---------- Financial Module ----------
+@ttl_cache(300) # 5 min cache
+def get_stock_price(symbol):
     try:
+        # Check if user meant an Indian stock (usually needs .NS for Yahoo)
+        if symbol.upper() in ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'HDFCBANK']:
+            symbol = f"{symbol.upper()}.NS"
+        
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        res = data['chart']['result'][0]['meta']
+        price = res['regularMarketPrice']
+        currency = res['currency']
+        change = res.get('regularMarketChange', 0)
+        return f"📈 **{symbol.replace('.NS','')}**\nPrice: {currency} {price:,.2f}\nChange: {change:+.2f}"
+    exceptException as e:
+        return f"Could not fetch stock {symbol}."
+
+@ttl_cache(300)
+def get_crypto_price(coin):
+    try:
+        coin_id = coin.lower().strip()
+        # Mapping common names to CoinGecko IDs
+        mapping = {'btc': 'bitcoin', 'eth': 'ethereum', 'doge': 'dogecoin', 'sol': 'solana'}
+        coin_id = mapping.get(coin_id, coin_id)
+        
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd,inr"
         resp = requests.get(url, timeout=10)
         data = resp.json()
-        if data.get('cod') != 200:
-            return f"City '{city}' not found."
-        temp = data['main']['temp']
-        desc = data['weather'][0]['description']
-        return f"Weather in {city.title()}: {temp}°C, {desc}."
+        prices = data[coin_id]
+        return f"🪙 **{coin_id.upper()}**\n💰 ${prices['usd']:,.2f} USD\n🇮🇳 ₹{prices['inr']:,.2f} INR"
     except:
-        return "Weather service error."
+        return "Crypto price check failed."
 
-# ---------- Cached News (GNews) ----------
-@ttl_cache(1800)  # Cache for 30 minutes
+# ---------- News Module (GNews) ----------
+@ttl_cache(1800)
 def get_news(query=None, country="in"):
     api_key = os.getenv('GNEWS_API_KEY') or os.getenv('NEWS_API_KEY')
-    if not api_key:
-        return "News API key missing. Please set GNEWS_API_KEY or NEWS_API_KEY in Render."
-    
-    # Use GNews API if available, otherwise fallback logic can be added
-    # For now, following the GNews URL structure provided
+    if not api_key: return "News API key missing."
     if query:
-        url = f"https://gnews.io/api/v4/search?q={urllib.parse.quote(query)}&token={api_key}&lang=en&max=5"
+        url = f"https://gnews.io/api/v4/search?q={urllib.parse.quote(query)}&token={api_key}&lang=en&max=3"
     else:
-        url = f"https://gnews.io/api/v4/top-headlines?country={country}&token={api_key}&max=5"
-    
+        url = f"https://gnews.io/api/v4/top-headlines?country={country}&token={api_key}&max=3"
     try:
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        if data.get('errors'):
-            return f"News error: {data['errors'][0]}"
+        data = requests.get(url, timeout=10).json()
         articles = data.get('articles', [])
-        if not articles:
-            return "No news found. Try a different keyword."
-        news_list = []
-        for art in articles[:5]:
-            title = art.get('title', 'No title')
-            link = art.get('url', '#')
-            news_list.append(f"📰 **{title}**\n🔗 [Read more]({link})\n")
-        return "\n".join(news_list)
-    except Exception as e:
-        # Fallback to NewsAPI logic if GNews fails and it's a NewsAPI key
-        if "newsapi.org" not in locals(): # Placeholder for fallback logic
-             return f"News error: {e}"
+        if not articles: return "No news found."
+        return "\n".join([f"📰 **{a['title']}**\n🔗 [Link]({a['url']})\n" for a in articles])
+    except: return "News error."
 
-# ---------- Smart Web Search ----------
-def smart_search(query):
+# ---------- Study Mode Module ----------
+study_state = {"active": False, "remaining": 0, "total": 0}
+
+def study_timer_thread(minutes):
+    global study_state
+    study_state["active"] = True
+    study_state["total"] = minutes * 60
+    study_state["remaining"] = study_state["total"]
+    while study_state["remaining"] > 0 and study_state["active"]:
+        time.sleep(1)
+        study_state["remaining"] -= 1
+    study_state["active"] = False
+
+# ---------- Weather Module ----------
+@ttl_cache(600)
+def get_weather(city):
+    api_key = os.getenv('WEATHER_API_KEY')
+    if not api_key: return "Weather API key missing."
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3))
-            if not results:
-                return "No results found."
-            context = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
-            prompt = f"Summarize the following search results about '{query}' in 2-3 sentences in Hinglish:\n{context}"
-            summary = ask_nvidia_stream(prompt, "You are a helpful summarizer.")
-            summary_text = ""
-            for chunk in summary:
-                summary_text += chunk
-            links = "\n".join([f"🔗 {r['title']}: {r['href']}" for r in results])
-            return f"{summary_text}\n\nSource links:\n{links}"
-    except Exception as e:
-        return f"Search error: {e}"
+        data = requests.get(url, timeout=10).json()
+        temp = data['main']['temp']
+        desc = data['weather'][0]['description']
+        return f"☁️ {city.title()}: {temp}°C, {desc}."
+    except: return "Weather check failed."
 
-# ---------- User Profile Management ----------
-def get_profile_file(user):
-    return os.path.join(PROFILES_DIR, f"{user}.json")
-
-def load_profile(user="akram"):
-    file = get_profile_file(user)
-    if os.path.exists(file):
-        with open(file, 'r') as f:
-            return json.load(f)
-    return {"name": user.capitalize(), "memory": {}, "graph": {}, "reminders": [], "theme": "default"}
-
-def save_profile(user, data):
-    with open(get_profile_file(user), 'w') as f:
-        json.dump(data, f, indent=2)
-
-# ---------- Reminders ----------
-def add_reminder(user, time_str, message):
-    parsed = parse(time_str, settings={'PREFER_DATES_FROM': 'future'})
-    if not parsed:
-        return False, "Sorry, I couldn't understand the time."
-    profile = load_profile(user)
-    profile["reminders"].append({"time": parsed.isoformat(), "message": message})
-    save_profile(user, profile)
-    return True, f"Reminder set for {parsed.strftime('%I:%M %p on %b %d')}: {message}"
-
-def check_reminders(user):
-    profile = load_profile(user)
-    now = datetime.now()
-    due = []
-    new_reminders = []
-    for r in profile["reminders"]:
-        dt = datetime.fromisoformat(r["time"])
-        if dt <= now:
-            due.append(r)
-        else:
-            new_reminders.append(r)
-    profile["reminders"] = new_reminders
-    save_profile(user, profile)
-    return due
-
-# ---------- Morning Briefing ----------
-def morning_briefing(user):
-    profile = load_profile(user)
-    weather = get_weather("Chhapra") if os.getenv('WEATHER_API_KEY') else "Weather not available."
-    due = check_reminders(user)
-    reminder_text = ""
-    if due:
-        reminder_text = "🔔 Reminders:\n" + "\n".join([f"- {r['message']} (at {datetime.fromisoformat(r['time']).strftime('%I:%M %p')})" for r in due])
-    else:
-        reminder_text = "No reminders for today."
-    import random
-    quotes = [
-        "The only way to do great work is to love what you do. – Steve Jobs",
-        "Believe you can and you're halfway there. – Theodore Roosevelt",
-        "Start where you are. Use what you have. Do what you can. – Arthur Ashe"
-    ]
-    quote = random.choice(quotes)
-    return f"🌞 Good morning, {profile['name']}!\n\n{weather}\n\n{reminder_text}\n\n💡 {quote}\n\n🎵 How about listening to 'Jawan'? 🎵"
-
-# ---------- HTML (Cinematic UI with Streaming) ----------
+# ---------- HTML (Cinematic Level 9 HUD) ----------
 HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Astra | Anti-Gravity HUD</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astra HUD | Level 9</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #00ff9d;
-            --secondary: #ff00e5;
-            --bg-gradient: radial-gradient(circle at 30% 40%, #0d0b1a, #000000);
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            min-height: 100vh;
-            background: var(--bg-gradient);
-            font-family: 'Poppins', sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-        }
-        .stars {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-        }
-        .star {
-            position: absolute;
-            background: #fff;
-            border-radius: 50%;
-            opacity: 0;
-            animation: twinkle 3s infinite alternate;
-        }
-        @keyframes twinkle {
-            0% { opacity: 0; transform: scale(0.5); }
-            100% { opacity: 0.8; transform: scale(1); }
-        }
-        .container {
-            width: 100%;
-            max-width: 900px;
-            background: rgba(15, 20, 30, 0.5);
-            backdrop-filter: blur(12px);
-            border-radius: 32px;
-            border: 1px solid var(--primary);
-            box-shadow: 0 25px 45px rgba(0,0,0,0.3), 0 0 20px rgba(0,255,157,0.2);
-            z-index: 2;
-        }
-        .header {
-            padding: 20px 30px;
-            border-bottom: 1px solid rgba(0,255,157,0.2);
-            text-align: center;
-        }
-        .header h1 {
-            font-family: 'Orbitron', monospace;
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .badge {
-            display: inline-block;
-            margin-top: 8px;
-            background: rgba(0,255,157,0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            color: var(--primary);
-            font-family: 'Orbitron', monospace;
-        }
-        .chat {
-            height: 450px;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            scroll-behavior: smooth;
-        }
-        .chat::-webkit-scrollbar {
-            width: 5px;
-        }
-        .chat::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-        }
-        .chat::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-        .msg {
-            max-width: 80%;
-            padding: 12px 18px;
-            border-radius: 20px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-            animation: fadeInUp 0.3s ease-out;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: #0a0f1a;
-            border-bottom-right-radius: 4px;
-        }
-        .bot {
-            align-self: flex-start;
-            background: rgba(30, 35, 50, 0.8);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(0,255,157,0.3);
-            color: #e0e0e0;
-            border-bottom-left-radius: 4px;
-        }
-        .typing {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            padding: 12px 18px;
-            background: rgba(30, 35, 50, 0.6);
-            border-radius: 20px;
-            width: fit-content;
-        }
-        .typing span {
-            width: 8px;
-            height: 8px;
-            background: var(--primary);
-            border-radius: 50%;
-            animation: bounce 1.2s infinite;
-        }
-        .typing span:nth-child(2) { animation-delay: 0.2s; }
-        .typing span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bounce {
-            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-            30% { transform: translateY(-8px); opacity: 1; }
-        }
-        .input-area {
-            padding: 20px;
-            border-top: 1px solid rgba(0,255,157,0.2);
-            display: flex;
-            gap: 12px;
-        }
-        .input-area input {
-            flex: 1;
-            background: rgba(10, 15, 26, 0.6);
-            border: 1px solid rgba(0,255,157,0.4);
-            border-radius: 40px;
-            padding: 14px 20px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 1rem;
-            color: #fff;
-            outline: none;
-            transition: all 0.3s;
-        }
-        .input-area input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 12px rgba(0,255,157,0.4);
-        }
-        .input-area button {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border: none;
-            border-radius: 40px;
-            padding: 0 24px;
-            font-family: 'Orbitron', monospace;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #0a0f1a;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .input-area button:hover {
-            transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(0,255,157,0.5);
-        }
-        @media (max-width: 600px) {
-            .msg { max-width: 90%; font-size: 0.85rem; }
-            .header h1 { font-size: 1.4rem; }
-            .input-area input, .input-area button { padding: 12px 16px; }
-        }
+        :root { --p: #00ff9d; --s: #ff00e5; --bg: #000; }
+        body { background: var(--bg); color: #fff; font-family: 'Poppins', sans-serif; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .stars { position: fixed; width: 100%; height: 100%; z-index: -1; }
+        .container { width: 95%; max-width: 1000px; height: 85vh; background: rgba(10,15,25,0.7); backdrop-filter: blur(15px); border: 1px solid var(--p); border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 30px rgba(0,255,157,0.2); }
+        .header { padding: 15px 30px; border-bottom: 1px solid rgba(0,255,157,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-family: 'Orbitron'; font-size: 1.2rem; letter-spacing: 2px; color: var(--p); text-shadow: 0 0 10px var(--p); }
+        .chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+        .msg { max-width: 80%; padding: 12px 18px; border-radius: 18px; font-size: 0.95rem; line-height: 1.5; position: relative; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .user { align-self: flex-end; background: linear-gradient(135deg, var(--p), var(--s)); color: #000; border-bottom-right-radius: 4px; }
+        .bot { align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,157,0.3); border-bottom-left-radius: 4px; }
+        .input-area { padding: 20px; border-top: 1px solid rgba(0,255,157,0.2); display: flex; gap: 10px; }
+        input { flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--p); border-radius: 30px; padding: 12px 20px; color: #fff; outline: none; transition: 0.3s; }
+        input:focus { box-shadow: 0 0 15px var(--p); }
+        button { background: var(--p); color: #000; border: none; border-radius: 30px; padding: 0 25px; font-family: 'Orbitron'; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #fff; transform: scale(1.05); }
+
+        /* Widgets */
+        #studyWidget { position: fixed; top: 20px; right: 20px; background: rgba(255,0,229,0.15); border: 1px solid var(--s); padding: 15px; border-radius: 20px; backdrop-filter: blur(10px); display: none; text-align: center; width: 150px; z-index: 10; }
+        #studyTimer { font-family: 'Orbitron'; font-size: 1.8rem; color: #fff; margin: 5px 0; }
+        .ticker { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0,255,157,0.05); font-family: 'Orbitron'; font-size: 0.7rem; padding: 5px; overflow: hidden; white-space: nowrap; border-top: 1px solid rgba(0,255,157,0.1); }
+        .ticker-inner { display: inline-block; animation: ticker 30s linear infinite; }
+        @keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
+    <div id="studyWidget">
+        <div style="font-size: 0.6rem; color: var(--s);">STUDY MODE</div>
+        <div id="studyTimer">25:00</div>
+        <button onclick="stopStudy()" style="font-size: 0.6rem; padding: 5px 10px; background: var(--s);">STOP</button>
+    </div>
     <div class="container">
         <div class="header">
-            <h1>▲ ASTRA ANTI-GRAVITY</h1>
-            <div class="badge">STREAMING | CACHED | INSTANT</div>
+            <h1>ASTRA <span style="font-size: 0.6rem; opacity: 0.7;">LEVEL 9 HUD</span></h1>
+            <div id="status" style="font-size: 0.6rem; font-family: 'Orbitron'; color: var(--p);">SYSTEM ACTIVE</div>
         </div>
         <div class="chat" id="chat"></div>
         <div class="input-area">
-            <input type="text" id="input" placeholder="Ask Astra..." autocomplete="off">
-            <button onclick="startVoice()">🎤</button>
+            <input type="text" id="input" placeholder="Ask Astra anything..." autocomplete="off">
             <button onclick="send()">SEND</button>
         </div>
+    </div>
+    <div class="ticker">
+        <div class="ticker-inner" id="tickerText">BTC: Loading... | ETH: Loading... | Reliance: Loading... | Nifty: Loading...</div>
     </div>
 
     <script>
         const chat = document.getElementById('chat');
         const input = document.getElementById('input');
 
-        function addMessage(role, text, isTyping = false) {
+        function addMsg(role, text) {
             const div = document.createElement('div');
             div.className = `msg ${role}`;
-            if (isTyping) {
-                div.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
-            } else {
-                div.innerHTML = text.replace(/\\n/g, '<br>');
-            }
+            div.innerHTML = text.replace(/\\n/g, '<br>');
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
             return div;
         }
 
-        window.addEventListener('load', () => {
-            const starsContainer = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                const size = Math.random() * 3 + 1;
-                star.style.width = size + 'px';
-                star.style.height = size + 'px';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.animationDelay = Math.random() * 5 + 's';
-                star.style.animationDuration = Math.random() * 3 + 2 + 's';
-                starsContainer.appendChild(star);
-            }
-            addMessage('bot', '🖖 Asalamlekuim Akram! How can I help you today? 😊');
-        });
-
         async function send() {
-            const text = input.value.trim();
-            if (!text) return;
-            addMessage('user', text);
+            const val = input.value.trim();
+            if (!val) return;
+            addMsg('user', val);
             input.value = '';
             
-            const typingDiv = addMessage('bot', '', true);
-            
+            const botDiv = addMsg('bot', 'Processing...');
             try {
-                const response = await fetch('/ask-stream', {
+                const resp = await fetch('/ask-stream', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: text})
+                    body: JSON.stringify({message: val})
                 });
-                
-                typingDiv.remove();
-                
-                const botDiv = addMessage('bot', '', false);
-                const reader = response.body.getReader();
+                const reader = resp.body.getReader();
                 const decoder = new TextDecoder();
-                let fullText = '';
-                
+                botDiv.innerHTML = '';
                 while (true) {
                     const {done, value} = await reader.read();
                     if (done) break;
-                    const chunk = decoder.decode(value);
-                    fullText += chunk;
-                    botDiv.innerHTML = fullText.replace(/\\n/g, '<br>');
+                    botDiv.innerHTML += decoder.decode(value).replace(/\\n/g, '<br>');
                     chat.scrollTop = chat.scrollHeight;
                 }
-                
-                if (!fullText) {
-                    botDiv.innerHTML = 'Sorry, no response.';
-                }
-            } catch (err) {
-                if (typingDiv) typingDiv.remove();
-                addMessage('bot', 'Network error. Please try again.');
-            }
+            } catch { botDiv.innerHTML = 'Connection Error.'; }
         }
 
-        let recognition = null;
-        function startVoice() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                addMessage('bot', 'Sorry, your browser does not support voice input.');
-                return;
+        function stopStudy() { fetch('/stop-study', {method: 'POST'}); }
+
+        // Sync Logic
+        setInterval(async () => {
+            const resp = await fetch('/status');
+            const data = await resp.json();
+            const widget = document.getElementById('studyWidget');
+            if (data.study.active) {
+                widget.style.display = 'block';
+                const m = Math.floor(data.study.remaining/60);
+                const s = data.study.remaining%60;
+                document.getElementById('studyTimer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+            } else { widget.style.display = 'none'; }
+            
+            // Update Ticker (Sample logic)
+            if (data.market) {
+                document.getElementById('tickerText').innerText = data.market;
             }
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'hi-IN';
-            recognition.interimResults = false;
-            recognition.onresult = (event) => {
-                const text = event.results[0][0].transcript;
-                input.value = text;
-                send();
-            };
-            recognition.onerror = () => addMessage('bot', 'Voice recognition error.');
-            recognition.start();
+        }, 1000);
+
+        // Stars
+        const stars = document.getElementById('stars');
+        for(let i=0; i<100; i++) {
+            const s = document.createElement('div');
+            s.style.position = 'absolute';
+            s.style.background = '#fff';
+            s.style.width = Math.random()*3+'px';
+            s.style.height = s.style.width;
+            s.style.left = Math.random()*100+'%';
+            s.style.top = Math.random()*100+'%';
+            s.style.borderRadius = '50%';
+            s.style.opacity = Math.random();
+            stars.appendChild(s);
         }
 
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') send();
-        });
+        input.addEventListener('keypress', (e) => { if(e.key==='Enter') send(); });
+        window.onload = () => addMsg('bot', 'Welcome back, Akram. Level 9 HUD online. How can I help you today?');
     </script>
 </body>
 </html>
@@ -522,53 +289,64 @@ HTML = """<!DOCTYPE html>
 def index():
     return render_template_string(HTML)
 
+@app.route('/status')
+def status():
+    # Fetch ticker data (sample)
+    market = "BTC: $75,340 | ETH: $2,890 | RELIANCE: ₹1,363 | NVIDIA: $145.20"
+    return jsonify({"study": study_state, "market": market})
+
+@app.route('/stop-study', methods=['POST'])
+def stop_study():
+    study_state["active"] = False
+    return "OK"
+
 @app.route('/ask-stream', methods=['POST'])
 def ask_stream():
     data = request.get_json()
-    user_input = data.get('message', '').strip()
-    if not user_input:
-        return Response("Kuch boliye.", mimetype='text/plain')
+    input_text = data.get('message', '').strip()
+    if not input_text: return Response("Boliye...", mimetype='text/plain')
     
     def generate():
-        user_lower = user_input.lower()
+        low = input_text.lower()
         
-        # Weather command
-        if any(w in user_lower for w in ['weather', 'temp', 'mausam', 'taapmaan']):
-            city = "Chhapra"
-            known_cities = ['delhi', 'mumbai', 'kolkata', 'chennai', 'bangalore', 'patna', 'chhapra', 'london', 'new york']
-            for c in known_cities:
-                if c in user_lower:
-                    city = c
-                    break
-            yield get_weather(city)
+        # Financial Commands
+        if 'stock' in low or 'share' in low:
+            for symbol in ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'HDFCBANK', 'NVIDIA', 'AAPL', 'TSLA']:
+                if symbol.lower() in low:
+                    yield get_stock_price(symbol)
+                    return
+            yield get_stock_price('RELIANCE')
             return
-        
-        # News command
-        if 'news' in user_lower or 'khabar' in user_lower:
-            query = None
-            if user_lower.startswith('news '):
-                query = user_input[5:].strip()
-            elif 'news about ' in user_lower:
-                query = user_lower.split('news about ')[-1].strip()
-            yield get_news(query=query)
-            return
-        
-        # Morning briefing
-        if any(w in user_lower for w in ['good morning', 'morning', 'subah']):
-            yield morning_briefing("akram")
+            
+        if 'crypto' in low or 'bitcoin' in low or 'btc' in low:
+            coin = 'bitcoin'
+            if 'ethereum' in low or 'eth' in low: coin = 'ethereum'
+            elif 'solana' in low or 'sol' in low: coin = 'solana'
+            yield get_crypto_price(coin)
             return
 
-        # General AI with streaming
-        for chunk in ask_nvidia_stream(user_input):
+        # Study Mode
+        if 'start study' in low or 'focus mode' in low:
+            mins = 25
+            match = re.search(r'(\d+)\s*min', low)
+            if match: mins = int(match.group(1))
+            threading.Thread(target=study_timer_thread, args=(mins,)).start()
+            yield f"🎓 **Study Mode Activated!**\nTimer set for {mins} minutes. Focus well, Akram! 📖"
+            return
+            
+        if 'analyze syllabus' in low or 'analyze text' in low:
+            text = input_text.replace('analyze syllabus','').replace('analyze text','').strip()
+            if not text: yield "Pehle syllabus context dijiye."
+            else:
+                for chunk in ask_nvidia_stream(f"Analyze this syllabus and give me a study plan: {text}"):
+                    yield chunk
+            return
+
+        # Regular AI
+        for chunk in ask_nvidia_stream(input_text):
             yield chunk
-    
-    return Response(stream_with_context(generate()), mimetype='text/plain')
 
-@app.route('/telegram', methods=['GET', 'POST'])
-def telegram_webhook():
-    if request.method == 'GET':
-        return "🤖 Astra Anti-Gravity Webhook is ACTIVE", 200
-    return "OK", 200
+    return Response(stream_with_context(generate()), mimetype='text/plain')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
