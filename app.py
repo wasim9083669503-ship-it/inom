@@ -488,6 +488,33 @@ HTML = r"""<!DOCTYPE html>
 </head>
 <body>
 
+<!-- LOADING SCREEN -->
+<div id="loaderScreen" style="position:fixed;inset:0;z-index:2000;background:#020408;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;overflow:hidden;">
+  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(0,240,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;"></div>
+  <div id="lr1" style="position:absolute;width:180px;height:180px;border-radius:50%;border:1px solid rgba(0,240,255,0.1);border-top-color:#00f0ff;animation:ldrRing 2s linear infinite;"></div>
+  <div id="lr2" style="position:absolute;width:250px;height:250px;border-radius:50%;border:1px solid rgba(255,0,170,0.08);border-right-color:#ff00aa;animation:ldrRing 3s linear infinite reverse;"></div>
+  <div id="lr3" style="position:absolute;width:320px;height:320px;border-radius:50%;border:1px solid rgba(170,255,0,0.07);border-bottom-color:#aaff00;animation:ldrRing 4s linear infinite;"></div>
+  <div style="position:relative;z-index:2;text-align:center;">
+    <div style="font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:900;color:#00f0ff;letter-spacing:6px;text-shadow:0 0 20px rgba(0,240,255,0.5);animation:ldrPulse 1.5s ease-in-out infinite;">▲ ASTRA</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(0,240,255,0.45);letter-spacing:4px;margin-top:5px;">LEVEL 9 · INITIALIZING</div>
+  </div>
+  <div style="position:relative;z-index:2;width:220px;margin-top:90px;">
+    <div style="background:rgba(0,240,255,0.08);border-radius:10px;height:3px;overflow:hidden;"><div id="ldrBar" style="height:100%;width:0%;border-radius:10px;background:linear-gradient(90deg,#00f0ff,#aaff00);transition:width 0.3s ease;"></div></div>
+    <div id="ldrStatus" style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(0,240,255,0.4);letter-spacing:2px;margin-top:8px;text-align:center;animation:ldrBlink 0.8s step-end infinite;">BOOTING...</div>
+  </div>
+  <div style="position:relative;z-index:2;display:flex;gap:8px;margin-top:18px;">
+    <div style="width:6px;height:6px;background:#00f0ff;border-radius:50%;animation:ldrBounce 1.2s ease-in-out infinite;"></div>
+    <div style="width:6px;height:6px;background:#ff00aa;border-radius:50%;animation:ldrBounce 1.2s ease-in-out 0.2s infinite;"></div>
+    <div style="width:6px;height:6px;background:#aaff00;border-radius:50%;animation:ldrBounce 1.2s ease-in-out 0.4s infinite;"></div>
+  </div>
+</div>
+<style>
+@keyframes ldrRing{to{transform:rotate(360deg);}}
+@keyframes ldrPulse{0%,100%{opacity:0.7;}50%{opacity:1;}}
+@keyframes ldrBlink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes ldrBounce{0%,60%,100%{transform:translateY(0);opacity:0.4;}30%{transform:translateY(-8px);opacity:1;}}
+</style>
+
 <div id="loginScreen">
     <div class="login-box">
         <div class="login-logo">▲ ASTRA</div>
@@ -777,6 +804,16 @@ HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
+// ── LOADER ──
+(function(){
+  const steps = [{text:"BOOTING SYSTEM...",pct:15},{text:"LOADING AI ENGINE...",pct:35},{text:"CONNECTING FIREBASE...",pct:55},{text:"FETCHING MARKET DATA...",pct:75},{text:"LOADING FONTS...",pct:88},{text:"SYSTEM READY ✓",pct:100}];
+  const bar=document.getElementById('ldrBar'),status=document.getElementById('ldrStatus'),screen=document.getElementById('loaderScreen');let i=0;
+  function nextStep(){
+    if(i>=steps.length){screen.style.transition='opacity 0.6s ease';screen.style.opacity='0';setTimeout(()=>screen.style.display='none',650);return;}
+    const s=steps[i++];bar.style.width=s.pct+'%';status.textContent=s.text;setTimeout(nextStep,i===steps.length?700:380);
+  }
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(()=>setTimeout(nextStep,200));}else{setTimeout(nextStep,300);}
+})();
 // ── AUTH ──
 let token=localStorage.getItem('astra_token')||'';
 async function doLogin(){
