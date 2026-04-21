@@ -14,6 +14,8 @@ import yt_dlp
 from functools import wraps
 import asyncio
 import edge_tts
+import tempfile
+import uuid
 
 import sys
 sys.modules['google.generativeai'] = None
@@ -1027,13 +1029,22 @@ def speak_route():
     text = request.args.get('text', '').strip()
     if not text: return "No text provided", 400
     
-    async def generate_audio():
-        communicate = edge_tts.Communicate(text, VOICE, rate="+5%", pitch="+2Hz")
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                yield chunk["data"]
+    def generate():
+        # Using a temporary file to ensure stable streaming in production
+        temp_id = str(uuid.uuid4())
+        tmp_path = os.path.join(tempfile.gettempdir(), f"astra_voice_{temp_id}.mp3")
+        try:
+            asyncio.run(edge_tts.Communicate(text, VOICE, rate="+5%", pitch="+2Hz").save(tmp_path))
+            if os.path.exists(tmp_path):
+                with open(tmp_path, "rb") as f:
+                    while chunk := f.read(8192):
+                        yield chunk
+        finally:
+            if os.path.exists(tmp_path):
+                try: os.remove(tmp_path)
+                except: pass
                 
-    return Response(stream_with_context(generate_audio()), mimetype='audio/mpeg')
+    return Response(stream_with_context(generate()), mimetype='audio/mpeg')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -12,3 +12,5 @@ dateparser
 python-telegram-bot==20.7
 duckduckgo-search
 requests-html
+edge-tts
+pygame
