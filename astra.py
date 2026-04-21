@@ -777,7 +777,32 @@ def process_command(command):
         city = command.replace("weather", "").replace("mausam", "").replace("in", "").replace("of", "").strip() or "Delhi"
         speak(get_weather(city))
 
-    # -------- NEWS (supports topic search) --------
+    # -------- FINANCIAL COMMANDS --------
+    elif "stock" in command or "share" in command:
+        for s in ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'HDFCBANK', 'NVIDIA', 'AAPL']:
+            if s.lower() in command:
+                speak(get_stock_price(s))
+                return
+        speak(get_stock_price('RELIANCE'))
+
+    elif "crypto" in command or "bitcoin" in command:
+        coin = 'bitcoin'
+        if "ethereum" in command or "eth" in command: coin = 'ethereum'
+        speak(get_crypto_price(coin))
+
+    # -------- STUDY MODE --------
+    elif "start study" in command or "focus mode" in command:
+        mins = 25
+        match = re.search(r'(\d+)\s*min', command)
+        if match: mins = int(match.group(1))
+        threading.Thread(target=study_timer_logic, args=(mins,)).start()
+        speak(f"🎓 Study Mode Activated for {mins} minutes. Focus well, Akram!")
+
+    elif "stop study" in command:
+        global study_active
+        study_active = False
+        speak("Study session stopped.")
+
     elif "news" in command or "khabar" in command:
         topic = None
         if command.startswith("news "):
@@ -913,6 +938,41 @@ def get_weather(city):
         return f"{city} me filhal {cond} hai aur temperature {temp} degree hai 🌡️"
     except:
         return "Weather update fetch nahi ho paya"
+
+# -------- FINANCIAL TOOLS --------
+def get_stock_price(symbol):
+    try:
+        if symbol.upper() in ['RELIANCE', 'TCS', 'INFY', 'WIPRO', 'HDFCBANK']:
+            symbol = f"{symbol.upper()}.NS"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        res = data['chart']['result'][0]['meta']
+        price = res['regularMarketPrice']
+        currency = res['currency']
+        return f"📈 Stock {symbol.replace('.NS','')}: {currency} {price:,.2f}"
+    except: return f"Stock {symbol} not found."
+
+def get_crypto_price(coin):
+    try:
+        mapping = {'btc': 'bitcoin', 'eth': 'ethereum', 'doge': 'dogecoin'}
+        coin_id = mapping.get(coin.lower(), coin.lower())
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd,inr"
+        data = requests.get(url, timeout=10).json()
+        prices = data[coin_id]
+        return f"🪙 {coin_id.upper()}: ${prices['usd']:,.2f} USD | ₹{prices['inr']:,.2f} INR"
+    except: return "Crypto fetch failed."
+
+# -------- STUDY MODE --------
+study_active = False
+def study_timer_logic(mins):
+    global study_active
+    study_active = True
+    time.sleep(mins * 60)
+    if study_active:
+        print("\n🎓 Study session completed!")
+        study_active = False
 
 def get_news(query=None, country="in"):
     """Fetch news headlines – either top headlines or search by query (GNews)"""
