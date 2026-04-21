@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string, Response, stream_with_context
 from openai import OpenAI
 import yt_dlp
-from dotenv import load_dotenv
 from functools import wraps
+import asyncio
+import edge_tts
 
 import sys
 sys.modules['google.generativeai'] = None
@@ -768,7 +769,7 @@ function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g
 let ttsOn=localStorage.getItem('tts_on')==='true';
 const ttsBtn=document.getElementById('ttsBtn');ttsBtn.classList.toggle('tts-on',ttsOn);
 function toggleTTS(){ttsOn=!ttsOn;localStorage.setItem('tts_on',ttsOn);ttsBtn.classList.toggle('tts-on',ttsOn);if(ttsOn)speak('Voice reply enabled.');}
-function speak(text){if(!ttsOn||!window.speechSynthesis)return;window.speechSynthesis.cancel();const clean=text.replace(/<[^>]*>/g,'').replace(/[*_`#]/g,'').slice(0,280);const u=new SpeechSynthesisUtterance(clean);const voices=window.speechSynthesis.getVoices();const v=voices.find(v=>v.lang==='en-IN')||voices.find(v=>v.lang.startsWith('en'));if(v)u.voice=v;u.lang='en-IN';u.rate=0.93;u.pitch=1.05;window.speechSynthesis.speak(u);}
+async function speak(text){if(!ttsOn)return;const clean=text.replace(/<[^>]*>/g,'').replace(/[*_`#]/g,'').slice(0,400);try{const r=await fetch(`/speak?text=${encodeURIComponent(clean)}`,{headers:{'Authorization':'Bearer '+token}});if(r.ok){const b=await r.blob();const u=URL.createObjectURL(b);const a=new Audio(u);a.play();}}catch(e){}}
 
 // ── TABS ──
 function switchTab(n,b){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById(n+'Panel').classList.add('active');b.classList.add('active');if(n==='memory')loadMem();}
@@ -1017,6 +1018,22 @@ def market_ticker():
 
 @app.route('/health')
 def health(): return "Astra Level 9 Online! 🚀", 200
+
+VOICE = "hi-IN-SwaraNeural"
+
+@app.route('/speak')
+@require_auth
+def speak_route():
+    text = request.args.get('text', '').strip()
+    if not text: return "No text provided", 400
+    
+    async def generate_audio():
+        communicate = edge_tts.Communicate(text, VOICE, rate="+5%", pitch="+2Hz")
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                yield chunk["data"]
+                
+    return Response(stream_with_context(generate_audio()), mimetype='audio/mpeg')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
