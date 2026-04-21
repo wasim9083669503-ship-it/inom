@@ -332,8 +332,8 @@ HTML = r"""<!DOCTYPE html>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root{--p:#00f0ff;--s:#ff00aa;--a:#aaff00;--bg:#020408;--panel:rgba(0,240,255,0.04);--border:rgba(0,240,255,0.14);--text:#cce8f0;--dim:#3a6070;--glow:0 0 18px rgba(0,240,255,0.45);--glow2:0 0 18px rgba(255,0,170,0.45);--glow3:0 0 18px rgba(170,255,0,0.4);}
-        *{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;overflow:hidden;}
-        body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;display:flex;flex-direction:column;height:100vh;}
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-text-size-adjust:100%;}html,body{height:100%;overflow:hidden;}
+        body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;display:flex;flex-direction:column;height:100vh;overflow-x:hidden;width:100vw;}
         body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,240,255,0.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,0.022) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0;}
         body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:1;}
         /* LOGIN */
@@ -349,7 +349,7 @@ HTML = r"""<!DOCTYPE html>
         .login-btn:hover{transform:scale(1.02);box-shadow:var(--glow);}
         .login-err{color:var(--s);font-size:0.78rem;font-family:'Share Tech Mono',monospace;min-height:18px;}
         /* APP */
-        .app{position:relative;z-index:2;display:flex;flex-direction:column;height:100vh;max-width:980px;margin:0 auto;width:100%;padding:8px 10px;gap:6px;}
+        .app{position:relative;z-index:2;display:flex;flex-direction:column;height:100vh;max-width:980px;margin:0 auto;width:100%;padding:6px 8px;gap:6px;overflow-x:hidden;}
         header{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;border:1px solid var(--border);background:var(--panel);backdrop-filter:blur(12px);clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));flex-shrink:0;}
         .logo{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;color:var(--p);text-shadow:var(--glow);letter-spacing:3px;}.logo span{color:var(--s);}
         .header-right{display:flex;gap:8px;align-items:center;}
@@ -450,13 +450,13 @@ HTML = r"""<!DOCTYPE html>
         #toolsPanel{padding:10px;gap:8px;overflow-y:auto;}
         .code-ta{background:rgba(0,0,0,0.5);border:1px solid var(--border);color:#aaff88;font-family:'Share Tech Mono',monospace;font-size:0.76rem;padding:9px;border-radius:6px;width:100%;min-height:90px;resize:vertical;outline:none;}
         /* MEMORY */
-        #memoryPanel{padding:10px;gap:8px;overflow-y:auto;}
-        .mem-section{background:rgba(0,240,255,0.03);border:1px solid var(--border);border-radius:8px;padding:11px;}
-        .mem-section h3{font-family:'Orbitron',monospace;font-size:0.62rem;color:var(--p);letter-spacing:2px;margin-bottom:7px;}
+        #memoryPanel{padding:8px;gap:6px;overflow-y:auto;overflow-x:hidden;width:100%;}
+        .mem-section{background:rgba(0,240,255,0.03);border:1px solid var(--border);border-radius:8px;padding:10px;width:100%;overflow:hidden;box-sizing:border-box;}
+        .mem-section h3{font-family:'Orbitron',monospace;font-size:0.58rem;color:var(--p);letter-spacing:1px;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
         .mem-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(0,240,255,0.05);font-size:0.8rem;}
         .mem-key{color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:0.7rem;}.mem-val{color:var(--p);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .mem-save-row{display:flex;gap:5px;margin-top:7px;}
-        .mem-input{flex:1;background:rgba(0,0,0,0.4);border:1px solid var(--border);color:#fff;font-family:'Rajdhani',sans-serif;font-size:0.82rem;padding:6px 9px;border-radius:4px;outline:none;}
+        .mem-save-row{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap;}
+        .mem-input{flex:1;min-width:80px;background:rgba(0,0,0,0.4);border:1px solid var(--border);color:#fff;font-family:'Rajdhani',sans-serif;font-size:0.82rem;padding:6px 9px;border-radius:4px;outline:none;box-sizing:border-box;}
         /* FLOAT */
         #floatTimer{position:fixed;bottom:70px;right:14px;background:rgba(2,4,8,0.93);border:1px solid var(--p);border-radius:12px;padding:9px 14px;font-family:'Orbitron',monospace;text-align:center;z-index:999;display:none;box-shadow:var(--glow);min-width:110px;}
         .f-lbl{font-size:0.5rem;color:var(--p);letter-spacing:2px;}.f-time{font-size:1.5rem;font-weight:900;color:#fff;}
@@ -464,7 +464,18 @@ HTML = r"""<!DOCTYPE html>
         #installBanner{display:none;position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(2,4,8,.96);border:1px solid var(--a);border-radius:10px;padding:10px 18px;z-index:998;align-items:center;gap:10px;font-family:'Orbitron',monospace;font-size:0.65rem;color:var(--a);white-space:nowrap;}
         #installBanner.show{display:flex;}
         #installBanner button{background:var(--a);border:none;color:#020408;font-family:'Orbitron',monospace;font-size:.6rem;font-weight:700;padding:5px 12px;border-radius:5px;cursor:pointer;}
-        @media(max-width:600px){.logo{font-size:.9rem;}.msg{max-width:93%;font-size:.82rem;}.tab-btn{font-size:.46rem;padding:6px 1px;}.timer-display{font-size:2rem;}}
+        @media(max-width:600px){
+            .logo{font-size:.9rem;}
+            .msg{max-width:93%;font-size:.82rem;}
+            .tab-btn{font-size:.42rem;padding:5px 1px;}
+            .timer-display{font-size:2rem;}
+            .mem-section h3{font-size:0.54rem;letter-spacing:0.5px;}
+            .mem-item{flex-wrap:wrap;gap:4px;}
+            .mem-val{max-width:150px;}
+            header{padding:6px 10px;}
+            .login-box{padding:30px 24px;min-width:unset;width:90vw;}
+            .app{padding:4px 6px;}
+        }
     </style>
 </head>
 <body>

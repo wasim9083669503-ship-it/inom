@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 import warnings
 import threading
 import sys
+import asyncio
+import edge_tts
 
 # ---------- Kill-Switch (Safety for Render) ----------
 # Block any accidental Gemini/Claude/Anthropic calls if they exist in sub-dependencies
@@ -147,27 +149,37 @@ MODEL_NAME = "minimaxai/minimax-m2.5"
 # -------- SPEAK --------
 # Use gTTS (original Hindi voice) + pygame for crash-free playback
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
+# Best female voices for Hinglish:
+# "hi-IN-SwaraNeural"   → Hindi female (bahut natural)
+# "en-IN-NeerjaNeural"  → English-Indian female accent
+
+VOICE = "hi-IN-SwaraNeural"  # ← Ye change karke test karo
+
+async def speak_async(text):
+    communicate = edge_tts.Communicate(text, VOICE, rate="+5%", pitch="+2Hz")
+    await communicate.save("voice.mp3")
+
 def speak(text):
-    print(f"🔊 Astra Speaking: {text}")
+    print(f"🔊 Astra: {text}")
     update_ui(f"Speaking: {text}")
-    
-    if gTTS is None or pygame is None:
-        print("ℹ️ Voice output (speaker) is not available on this system.")
-        return
 
     try:
-        tts = gTTS(text=text, lang='hi')
-        tts.save("voice.mp3")
+        # Edge TTS se MP3 banao (async)
+        asyncio.run(speak_async(text))
+
+        # Pygame se bajao
+        pygame.mixer.init()
         pygame.mixer.music.load("voice.mp3")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
         pygame.mixer.music.unload()
+
         if os.path.exists("voice.mp3"):
             os.remove("voice.mp3")
+
     except Exception as e:
         print(f"❌ Speech error: {e}")
-        update_ui(f"Error: {e}")
 
 # -------- NORMALIZE --------
 def normalize_command(command):
