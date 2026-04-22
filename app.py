@@ -87,28 +87,16 @@ def init_firebase():
         cred = None
         if cred_data:
             try: cred = credentials.Certificate(json.loads(cred_data))
-            except: print("Error parsing FIREBASE_CREDENTIALS env var.")
-        
+            except Exception as e: print(f"Firebase env parse error: {e}")
         if not cred:
-            paths = ["/etc/secrets/FIREBASE_CREDENTIALS", "firebase.json"]
-            for p in paths:
-                if os.path.exists(p):
-                    try:
-                        cred = credentials.Certificate(p)
-                        break
-                    except Exception as e:
-                        print(f"Skipping {p}: Invalid certificate format.")
-        
-        if not cred:
-            print("Firebase: No valid credentials found. Local fallback enabled.")
+            print("Firebase: No credentials. Local memory mode.")
             return
-
         try: firebase_admin.get_app()
         except ValueError: firebase_admin.initialize_app(cred, {'databaseURL': fb_url})
         firebase_db = db
         print("Firebase Connected!")
     except Exception as e:
-        print(f"Firebase Setup Error: {str(e)}")
+        print(f"Firebase error: {e}")
 
 init_firebase()
 _local_memory = {}
@@ -330,12 +318,20 @@ def generate_image_prompt(description):
 # ─── YOUTUBE ───
 def get_youtube_embed_url(query):
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'extract_flat': True, 'no_warnings': True}) as ydl:
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,
+            'no_warnings': True,
+            'socket_timeout': 10,
+            'extractor_retries': 1,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch1:{query}", download=False)
             if 'entries' in info and info['entries']:
                 vid = info['entries'][0]
                 return f"https://www.youtube.com/embed/{vid['id']}?autoplay=1&controls=1&rel=0", vid.get('title', query), vid.get('duration', 0)
-    except: pass
+    except Exception as e:
+        print(f"yt-dlp error: {e}")
     return None, None, 0
 
 # ─── HTML ───
@@ -974,7 +970,7 @@ async function saveMem(){const k=document.getElementById('memKey').value.trim(),
 
 // ── TICKER ──
 async function updateTicker(){try{const r=await fetch('/market-ticker',{headers:{'Authorization':'Bearer '+token}});const d=await r.json();document.getElementById('tickerInner').innerHTML=d.ticker||'Loading...';}catch{}}
-setInterval(updateTicker,60000);
+setInterval(updateTicker,300000);
 
 // ── PWA ──
 let deferredPWA=null;
@@ -1168,22 +1164,23 @@ VOICE = "hi-IN-SwaraNeural"
 def speak_route():
     text = request.args.get('text', '').strip()
     if not text: return "No text provided", 400
-    
+    if len(text) > 300 or 'Internal Server Error' in text or '<!DOCTYPE' in text:
+        return "Invalid text", 400
     def generate():
-        # Using a temporary file to ensure stable streaming in production
         temp_id = str(uuid.uuid4())
         tmp_path = os.path.join(tempfile.gettempdir(), f"astra_voice_{temp_id}.mp3")
         try:
             asyncio.run(edge_tts.Communicate(text, VOICE, rate="+5%", pitch="+2Hz").save(tmp_path))
             if os.path.exists(tmp_path):
                 with open(tmp_path, "rb") as f:
-                    while chunk := f.read(8192):
+                    while chunk := f.read(4096):
                         yield chunk
+        except Exception as e:
+            print(f"TTS Error: {e}")
         finally:
             if os.path.exists(tmp_path):
                 try: os.remove(tmp_path)
                 except: pass
-                
     return Response(stream_with_context(generate()), mimetype='audio/mpeg')
 
 if __name__ == '__main__':
