@@ -28,7 +28,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'astra-level-9-super-secret-2025')
 
 # ─── JWT AUTH ───
-JWT_SECRET = os.getenv('JWT_SECRET', 'astra-jwt-secret-key-2025')
+JWT_SECRET = os.getenv('JWT_SECRET', 'inom1.0-jwt-secret-key-2025-wasim-secure-long')
 JWT_EXPIRY_HOURS = 24
 USERS = {"wasim": "b3282a2f2a28757b3a18ab833de16a9c54518c0b0cf493e3f0a7cf09386f326a"}
 
@@ -905,13 +905,16 @@ async function sendChat(){
     const tp=addMsg('bot','',true);
     try{
         const resp=await fetch('/ask-stream',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({message:text})});
-        if(resp.status===401){tp.remove();addMsg('bot','🔒 Session expired.');doLogout();return;}
+        if(resp.status===401){tp.remove();doLogout();return;}
+        const contentType=resp.headers.get('content-type')||'';
+        if(!resp.ok||contentType.includes('text/html')){tp.remove();addMsg('bot','⚠️ Server error. Dobara try karo.');return;}
         tp.remove();const botEl=addMsg('bot','');
         const reader=resp.body.getReader();const dec=new TextDecoder();let full='',musicUrl=null;
         while(true){const{done,value}=await reader.read();if(done)break;const chunk=dec.decode(value);
             if(chunk.startsWith('{')&&chunk.includes('music_url')){try{const d=JSON.parse(chunk);if(d.music_url)musicUrl=d.music_url;if(d.message)full+=d.message;if(d.title)full+=`\n🎵 **${d.title}**`;}catch{full+=chunk;}}else{full+=chunk;}
             botEl.innerHTML=fmt(full);chatMsgs.scrollTop=chatMsgs.scrollHeight;}
-        if(musicUrl)toPlayer(musicUrl);if(!full)botEl.innerHTML='No response.';else speak(full);
+        if(musicUrl)toPlayer(musicUrl);
+        if(full && !full.includes('Internal Server Error') && !full.includes('<!DOCTYPE')){speak(full);}
     }catch{tp.remove();addMsg('bot','❌ Network error.');}
 }
 chatInput.addEventListener('keypress',e=>{if(e.key==='Enter')sendChat();});
