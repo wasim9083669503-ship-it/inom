@@ -162,11 +162,25 @@ def build_system_prompt(username="wasim"):
     extras = []
     if memory.get("notes"): extras.append(f"Notes: {', '.join(str(n) for n in memory['notes'][-5:])}")
     if memory.get("preference"): extras.append(f"Likes: {memory['preference']}")
-    if memory.get("friends"): extras.append(f"Friends: {', '.join(memory['friends'][-10:])}")
-    return f"""You are inom1.0, Wasim ka AI assistant.
-Hinglish mein bolo. Max 2-3 lines. Emojis use karo.
-Friends: Rosidul (Best Friend), Aryan (Editor), Kaif.
-{chr(10).join(extras)}"""
+    
+    study_plan = {
+        "monday": "Arrays & Searching",
+        "tuesday": "Strings & Pattern Matching", 
+        "wednesday": "Linked List",
+        "thursday": "Stack & Queue",
+        "friday": "Trees & BST",
+        "saturday": "Graphs & DP",
+        "sunday": "Revision + Mock Test"
+    }
+    today = datetime.now().strftime("%A").lower()
+    aaj_topic = study_plan.get(today, "Revision")
+    
+    return f"""You are inom1.0, Wasim ka smart AI assistant.
+Hinglish mein bolo (Hindi+English mix). Max 3 lines. Emojis use karo.
+Aaj ka study topic: {aaj_topic}
+User: Wasim, B.Tech CS student.
+{chr(10).join(extras)}
+Smart best friend ki tarah baat karo."""
 
 def ask_nvidia_stream(prompt, username="wasim"):
     if not client:
@@ -181,20 +195,21 @@ def ask_nvidia_stream(prompt, username="wasim"):
         response = client.chat.completions.create(model=NVIDIA_MODEL, messages=messages, temperature=0.72, max_tokens=400, stream=True)
         full_reply = ""
         for chunk in response:
-            if chunk.choices[0].delta.content:
+            if chunk.choices and chunk.choices[0].delta.content:
                 content = chunk.choices[0].delta.content
                 full_reply += content
                 yield content
-        history.append({"role": "assistant", "content": full_reply})
-        _conv_histories[username] = history
-        save_conv(username, history)
-        low = prompt.lower()
-        if "i like" in low or "mujhe pasand" in low:
-            pref = re.sub(r'i like|mujhe pasand hai', '', low, flags=re.I).strip()
-            if pref: save_memory_cloud(username, "preference", pref)
-        if "my name is" in low or "mera naam" in low:
-            name = re.sub(r'my name is|mera naam', '', low, flags=re.I).strip()
-            if name: save_memory_cloud(username, "user_name", name)
+        if full_reply:
+            history.append({"role": "assistant", "content": full_reply})
+            _conv_histories[username] = history
+            save_conv(username, history)
+            low = prompt.lower()
+            if "i like" in low or "mujhe pasand" in low:
+                pref = re.sub(r'i like|mujhe pasand hai', '', low, flags=re.I).strip()
+                if pref: save_memory_cloud(username, "preference", pref)
+            if "my name is" in low or "mera naam" in low:
+                name = re.sub(r'my name is|mera naam', '', low, flags=re.I).strip()
+                if name: save_memory_cloud(username, "user_name", name)
     except Exception as e:
         yield f"⚠️ AI Error: {str(e)}"
 
@@ -999,43 +1014,46 @@ def ask_stream():
     if not input_text: return Response("Boliye...", mimetype='text/plain')
     username = get_username_from_request()
     def generate():
-        low = input_text.lower()
-        if any(x in low for x in ['stock','share price']):
-            for sym in ['RELIANCE','TCS','INFY','WIPRO','HDFCBANK','TATAMOTORS','NVIDIA','AAPL','TSLA','GOOGL','MSFT','ICICIBANK','SBIN']:
-                if sym.lower() in low: yield get_stock_price(sym); return
-            yield get_stock_price('RELIANCE'); return
-        if any(x in low for x in ['bitcoin','btc','ethereum','eth','solana','sol','crypto','doge','dogecoin']):
-            coin = 'bitcoin'
-            if 'ethereum' in low or ' eth' in low: coin = 'ethereum'
-            elif 'solana' in low: coin = 'solana'
-            elif 'doge' in low: coin = 'dogecoin'
-            yield get_crypto_price(coin); return
-        if low.startswith('play ') or 'gaana bajao' in low:
-            q = re.sub(r'^play |gaana bajao', '', low).strip()
-            if q:
-                url, title, _ = get_youtube_embed_url(q + ' song')
-                if url: yield json.dumps({"message":"🎵 Playing!","music_url":url,"title":title or q}); return
-                yield f"🎵 Search: https://youtube.com/results?search_query={urllib.parse.quote(q)}"
-            else: yield "Kaunsa gaana? 🎵"
-            return
-        if 'weather' in low or 'mausam' in low:
-            city = re.sub(r'weather|mausam|in|ka|of|aaj|kya|hai', '', low).strip() or 'Delhi'
-            yield get_weather(city); return
-        if 'news' in low or 'khabar' in low:
-            q = re.sub(r'news|khabar|aaj ki|latest|top|today', '', low).strip() or None
-            yield get_news(query=q); return
-        if 'start study' in low or 'pomodoro' in low:
-            m = re.search(r'(\d+)\s*min', low); mins = int(m.group(1)) if m else 25
-            threading.Thread(target=study_timer_thread, args=(mins,), daemon=True).start()
-            yield f"🎓 **{mins} minute** study timer started! 💪"; return
-        if 'yaad rakho' in low or 'remember that' in low:
-            item = re.sub(r'yaad rakho|remember that', '', low).strip()
-            if item:
-                mem = get_memory_cloud(username, 'notes') or []
-                if not isinstance(mem, list): mem = []
-                mem.append(item); save_memory_cloud(username, 'notes', mem[-20:])
-                yield f"💾 Yaad rakh liya: **{item}** ✅"; return
-        for chunk in ask_nvidia_stream(input_text, username): yield chunk
+        try:
+            low = input_text.lower()
+            if any(x in low for x in ['stock','share price']):
+                for sym in ['RELIANCE','TCS','INFY','WIPRO','HDFCBANK','TATAMOTORS','NVIDIA','AAPL','TSLA','GOOGL','MSFT','ICICIBANK','SBIN']:
+                    if sym.lower() in low: yield get_stock_price(sym); return
+                yield get_stock_price('RELIANCE'); return
+            if any(x in low for x in ['bitcoin','btc','ethereum','eth','solana','sol','crypto','doge','dogecoin']):
+                coin = 'bitcoin'
+                if 'ethereum' in low or ' eth' in low: coin = 'ethereum'
+                elif 'solana' in low: coin = 'solana'
+                elif 'doge' in low: coin = 'dogecoin'
+                yield get_crypto_price(coin); return
+            if low.startswith('play ') or 'gaana bajao' in low:
+                q = re.sub(r'^play |gaana bajao', '', low).strip()
+                if q:
+                    url, title, _ = get_youtube_embed_url(q + ' song')
+                    if url: yield json.dumps({"message":"🎵 Playing!","music_url":url,"title":title or q}); return
+                    yield f"🎵 Search: https://youtube.com/results?search_query={urllib.parse.quote(q)}"
+                else: yield "Kaunsa gaana? 🎵"
+                return
+            if 'weather' in low or 'mausam' in low:
+                city = re.sub(r'weather|mausam|in|ka|of|aaj|kya|hai', '', low).strip() or 'Delhi'
+                yield get_weather(city); return
+            if 'news' in low or 'khabar' in low:
+                q = re.sub(r'news|khabar|aaj ki|latest|top|today', '', low).strip() or None
+                yield get_news(query=q); return
+            if 'start study' in low or 'pomodoro' in low:
+                m = re.search(r'(\d+)\s*min', low); mins = int(m.group(1)) if m else 25
+                threading.Thread(target=study_timer_thread, args=(mins,), daemon=True).start()
+                yield f"🎓 **{mins} minute** study timer started! 💪"; return
+            if 'yaad rakho' in low or 'remember that' in low:
+                item = re.sub(r'yaad rakho|remember that', '', low).strip()
+                if item:
+                    mem = get_memory_cloud(username, 'notes') or []
+                    if not isinstance(mem, list): mem = []
+                    mem.append(item); save_memory_cloud(username, 'notes', mem[-20:])
+                    yield f"💾 Yaad rakh liya: **{item}** ✅"; return
+            for chunk in ask_nvidia_stream(input_text, username): yield chunk
+        except Exception as e:
+            yield f"⚠️ Error: {str(e)}"
     return Response(stream_with_context(generate()), mimetype='text/plain')
 
 @app.route('/memory')
