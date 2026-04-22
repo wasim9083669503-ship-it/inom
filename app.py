@@ -73,7 +73,7 @@ def ttl_cache(seconds):
 # ─── NVIDIA AI ───
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
 client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=NVIDIA_API_KEY) if NVIDIA_API_KEY else None
-NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
 
 # ─── FIREBASE ───
 firebase_db = None
@@ -160,14 +160,12 @@ def build_system_prompt(username="wasim"):
     if memory.get("notes"): extras.append(f"Notes: {', '.join(str(n) for n in memory['notes'][-5:])}")
     if memory.get("preference"): extras.append(f"Likes: {memory['preference']}")
     if memory.get("friends"): extras.append(f"Friends: {', '.join(memory['friends'][-10:])}")
-    return f"""You are inom1.0, a smart AI assistant for Wasim.
-Speak Hinglish (Hindi+English mix). Be smart, warm, concise (2-4 lines). Use emojis.
-User: Wasim, smart AI user.
-Friends: Rosidul Islam (Best Friend), Aryan Raj (Editor), Kaif Ali, Munshi Insiyat.
-{chr(10).join(extras)}
-Be like a smart best friend. Auto-learn from conversation."""
+    return f"""You are inom1.0, Wasim ka AI assistant.
+Hinglish mein bolo. Max 2-3 lines. Emojis use karo.
+Friends: Rosidul (Best Friend), Aryan (Editor), Kaif.
+{chr(10).join(extras)}"""
 
-def ask_nvidia_stream(prompt, username="akram"):
+def ask_nvidia_stream(prompt, username="wasim"):
     if not client:
         yield "⚠️ NVIDIA_API_KEY missing. Please configure environment variables."
         return
@@ -177,7 +175,7 @@ def ask_nvidia_stream(prompt, username="akram"):
     _conv_histories[username] = history
     try:
         messages = [{"role": "system", "content": build_system_prompt(username)}] + history
-        response = client.chat.completions.create(model=NVIDIA_MODEL, messages=messages, temperature=0.72, max_tokens=900, stream=True)
+        response = client.chat.completions.create(model=NVIDIA_MODEL, messages=messages, temperature=0.72, max_tokens=400, stream=True)
         full_reply = ""
         for chunk in response:
             if chunk.choices[0].delta.content:
@@ -250,7 +248,7 @@ def get_portfolio_summary():
         return " | ".join(parts)
     except: return "Market data loading..."
 
-@ttl_cache(1800)
+@ttl_cache(3600)
 def get_news(query=None, country="in"):
     api_key = os.getenv('GNEWS_API_KEY') or os.getenv('NEWS_API_KEY')
     if not api_key: return "⚠️ GNEWS_API_KEY missing in .env"
