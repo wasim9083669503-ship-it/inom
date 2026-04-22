@@ -280,6 +280,31 @@ def get_weather(city):
         return f"{icon} **{city.title()}**\n🌡️ {temp}°C (feels {feels}°C)\n💧 Humidity: {humidity}% | 💨 Wind: {wind} m/s\n{desc}"
     except: return "❌ Weather fetch failed."
 
+# ─── CRICKET ───
+@ttl_cache(120)
+def get_cricket_live():
+    api_key = os.getenv('CRICKET_API_KEY')
+    if not api_key: return "⚠️ CRICKET_API_KEY missing in .env"
+    try:
+        url = f"https://api.cricapi.com/v1/currentMatches?apikey={api_key}&offset=0"
+        data = requests.get(url, timeout=10).json()
+        if data.get('status') != 'success': return "❌ Cricket data unavailable"
+        matches = data.get('data', [])
+        if not matches: return "🏏 Abhi koi live match nahi hai"
+        result = "🏏 **LIVE CRICKET**\n━━━━━━━━━━━━━━\n"
+        for m in matches[:4]:
+            name = m.get('name', 'Unknown Match')
+            status = m.get('status', '')
+            match_type = m.get('matchType', '').upper()
+            score = m.get('score', [])
+            result += f"\n🔴 **{name}**\n📋 {match_type} | {status}\n"
+            if score:
+                for s in score:
+                    result += f"📊 {s.get('inning')}: {s.get('r')}/{s.get('w')} ({s.get('o')} ov)\n"
+            result += "━━━━━━━━━━━━━━\n"
+        return result
+    except Exception as e: return f"❌ Cricket error: {str(e)}"
+
 # ─── STUDY ───
 study_state = {"active": False, "remaining": 0, "total": 0}
 
@@ -554,6 +579,7 @@ HTML = r"""<!DOCTYPE html>
         <button class="tab-btn" onclick="switchTab('music',this)">🎵 MUSIC</button>
         <button class="tab-btn" onclick="switchTab('briefing',this)">🌅 BRIEF</button>
         <button class="tab-btn" onclick="switchTab('tools',this)">🛠 TOOLS</button>
+        <button class="tab-btn" onclick="switchTab('cricket',this)">🏏 CRICKET</button>
         <button class="tab-btn" onclick="switchTab('memory',this)">🧠 MEM</button>
     </div>
 
@@ -781,6 +807,25 @@ HTML = r"""<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- CRICKET -->
+    <div class="panel" id="cricketPanel">
+        <div style="padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;">
+            <div style="display:flex;gap:7px;">
+                <button class="go-btn" style="flex:1;padding:10px;" onclick="loadCricket()">🔴 LIVE SCORES REFRESH</button>
+            </div>
+            <div class="chips">
+                <span class="chip" onclick="qa('IPL live score')">🏆 IPL</span>
+                <span class="chip" onclick="qa('India cricket score')">🇮🇳 India</span>
+                <span class="chip" onclick="qa('cricket live match')">🔴 Live</span>
+                <span class="chip" onclick="qa('cricket points table')">📊 Points Table</span>
+            </div>
+            <div id="cricketResult" style="background:rgba(0,240,255,0.02);border:1px solid var(--border);border-radius:8px;padding:13px;font-family:'Share Tech Mono',monospace;font-size:0.83rem;line-height:2;min-height:200px;">
+                <span style="color:var(--dim)">Click LIVE SCORES to load...</span>
+            </div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--dim);text-align:center;">🔄 Auto-refresh every 2 min</div>
+        </div>
+    </div>
+
     <!-- MEMORY -->
     <div class="panel" id="memoryPanel">
         <div style="padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;">
@@ -895,6 +940,16 @@ let msgCount=0;
 function addMsg(role,html,typing=false){const d=document.createElement('div');if(typing){d.className='typing-dots';d.innerHTML='<span></span><span></span><span></span>';}else{d.className='msg '+role;d.innerHTML=html;}chatMsgs.appendChild(d);chatMsgs.scrollTop=chatMsgs.scrollHeight;return d;}
 function qa(q){chatInput.value=q;sendChat();}
 function bootMsg(u){addMsg('bot',fmt(`🖖 **Assalamalekum ${u.charAt(0).toUpperCase()+u.slice(1)} Bhai!**\n\n✨ **inom1.0 — Fully Powered** ✨\n\n• 💬 Chat — Memory AI + Voice + TTS\n• 📚 Study — Timer + Tasks + Quiz + Flashcards + Summarizer\n• 📈 Stocks — Search + Watchlist + Crypto\n• 🎵 Music — YouTube + 8 Moods\n• 🛠 Tools — Code + Image Prompt + Translate + Math AI\n• 🧠 Memory — Firebase Cloud Sync\n\n*Kya karna hai aaj? Ready hoon!* 🚀`));}
+// Cricket
+async function loadCricket(){
+    const box=document.getElementById('cricketResult');box.innerHTML='<span style="color:var(--dim)">⏳ Loading live scores...</span>';
+    try{
+        const r=await fetch('/cricket',{headers:{'Authorization':'Bearer '+token}});const d=await r.json();
+        box.innerHTML=fmt(d.result||'No data.');
+    }catch{box.innerHTML='❌ Error loading cricket data.';}
+}
+setInterval(()=>{if(document.getElementById('cricketPanel').classList.contains('active'))loadCricket();},120000);
+
 async function sendChat(){
     const text=chatInput.value.trim();if(!text)return;
     addMsg('user',esc(text));chatInput.value='';msgCount+=2;document.getElementById('histCount').textContent=msgCount;
@@ -1050,6 +1105,8 @@ def ask_stream():
                     if not isinstance(mem, list): mem = []
                     mem.append(item); save_memory_cloud(username, 'notes', mem[-20:])
                     yield f"💾 Yaad rakh liya: **{item}** ✅"; return
+            if any(x in low for x in ['cricket', 'ipl', 'match', 'score', 'batting', 'bowling']):
+                yield get_cricket_live(); return
             for chunk in ask_nvidia_stream(input_text, username): yield chunk
         except Exception as e:
             yield f"⚠️ Error: {str(e)}"
@@ -1156,6 +1213,11 @@ def market_ticker():
 
 @app.route('/health')
 def health(): return "inom1.0 Online! 🚀", 200
+
+@app.route('/cricket')
+@require_auth
+def cricket_route():
+    return jsonify({"result": get_cricket_live()})
 
 VOICE = "hi-IN-SwaraNeural"
 
