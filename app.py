@@ -313,7 +313,7 @@ def get_cricket_live():
         return result
     except Exception as e: return f"❌ Cricket error: {str(e)}"
 
-@ttl_cache(300)
+@ttl_cache(120)
 def get_cricket_recent():
     api_key = os.getenv('RAPIDAPI_KEY')
     if not api_key: return "⚠️ RAPIDAPI_KEY missing in .env"
@@ -321,29 +321,43 @@ def get_cricket_recent():
         url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent"
         headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "cricbuzz-cricket.p.rapidapi.com"}
         data = requests.get(url, headers=headers, timeout=10).json()
-        matches = data.get('typeMatches', [])
+        print("CRICKET API RAW:", json.dumps(data)[:500])
         result = "🏏 **RECENT CRICKET RESULTS**\n━━━━━━━━━━━━━━\n"
         count = 0
-        for type_match in matches:
-            series_list = type_match.get('seriesMatches', [])
-            for series in series_list:
-                series_data = series.get('seriesAdWrapper', {})
+        type_matches = data.get('typeMatches', [])
+        for type_match in type_matches:
+            series_matches = type_match.get('seriesMatches', [])
+            for series in series_matches:
+                series_data = series.get('seriesAdWrapper') or series.get('seriesWrapper') or {}
                 if not series_data: continue
-                series_name = series_data.get('seriesName', '')
+                series_name = series_data.get('seriesName', '') or series_data.get('series', {}).get('name', '')
                 match_list = series_data.get('matches', [])
                 for match in match_list:
-                    if count >= 5: break
+                    if count >= 6: break
                     mi = match.get('matchInfo', {}); ms = match.get('matchScore', {})
-                    team1 = mi.get('team1', {}).get('teamSName', '?'); team2 = mi.get('team2', {}).get('teamSName', '?')
-                    status = mi.get('status', '')
+                    team1 = (mi.get('team1', {}).get('teamSName') or mi.get('team1', {}).get('teamName') or '?')
+                    team2 = (mi.get('team2', {}).get('teamSName') or mi.get('team2', {}).get('teamName') or '?')
+                    status = mi.get('status', 'Result unavailable')
+                    match_desc = mi.get('matchDesc', '')
                     t1s = ms.get('team1Score', {}); t2s = ms.get('team2Score', {})
-                    t1_inn = t1s.get('inngs1', {}); t2_inn = t2s.get('inngs1', {})
-                    t1_score = f"{t1_inn.get('runs',0)}/{t1_inn.get('wickets',0)} ({t1_inn.get('overs',0)} ov)" if t1_inn else "-"
-                    t2_score = f"{t2_inn.get('runs',0)}/{t2_inn.get('wickets',0)} ({t2_inn.get('overs',0)} ov)" if t2_inn else "-"
-                    result += f"\n✅ **{team1} vs {team2}**\n🏆 {series_name[:35]}\n📊 {team1}: {t1_score}\n📊 {team2}: {t2_score}\n📢 {status}\n━━━━━━━━━━━━━━\n"
+                    def format_score(team_score):
+                        if not team_score: return "Yet to bat"
+                        inn = team_score.get('inngs1') or team_score.get('inngs2') or {}
+                        if not inn: return "Yet to bat"
+                        runs = inn.get('runs', 0); wkts = inn.get('wickets', 10); overs = inn.get('overs', 0)
+                        return f"{runs}/{wkts} ({overs} ov)" if wkts < 10 else f"{runs} ({overs} ov)"
+                    t1_score = format_score(t1s); t2_score = format_score(t2s)
+                    if team1 == '?' and team2 == '?': continue
+                    result += f"\n✅ **{team1} vs {team2}**\n"
+                    if series_name: result += f"🏆 {series_name[:40]}\n"
+                    if match_desc: result += f"📋 {match_desc}\n"
+                    result += f"🏏 {team1}: {t1_score}\n🏏 {team2}: {t2_score}\n📢 **{status}**\n━━━━━━━━━━━━━━\n"
                     count += 1
+        if count == 0: result += "\n😴 Koi recent match nahi mila\n"
         return result
-    except Exception as e: return f"❌ Recent matches error: {str(e)}"
+    except Exception as e:
+        print(f"Cricket Recent Error: {str(e)}")
+        return f"❌ Cricket error: {str(e)}"
 
 @ttl_cache(1800)
 def get_ipl_points_table():
@@ -1194,10 +1208,14 @@ def ask_stream():
                     if not isinstance(mem, list): mem = []
                     mem.append(item); save_memory_cloud(username, 'notes', mem[-20:])
                     yield f"💾 Yaad rakh liya: **{item}** ✅"; return
-            if (any(x in low for x in ['ipl', 'cricket', 'match score', 'kal ka match', 'yesterday match', 'live score', 'points table'])):
-                if any(x in low for x in ['points table', 'standings', 'ranking']): yield get_ipl_points_table()
-                elif any(x in low for x in ['recent', 'yesterday', 'kal ka', 'last match']): yield get_cricket_recent()
-                else: yield get_cricket_live()
+            if (any(x in low for x in ['ipl', 'cricket', 'match score', 'kal ka match', 'yesterday', 'yesterday match', 'live score', 'points table', 'batting', 'bowling'])):
+                if any(x in low for x in ['points table', 'standings', 'table']): yield get_ipl_points_table()
+                elif any(x in low for x in ['recent', 'yesterday', 'kal ka', 'last match', 'result', 'kal']): yield get_cricket_recent()
+                elif any(x in low for x in ['live', 'abhi', 'current', 'now']): yield get_cricket_live()
+                else:
+                    live = get_cricket_live()
+                    if 'koi live match nahi' in live or 'Abhi koi' in live: yield get_cricket_recent()
+                    else: yield live
                 return
             for chunk in ask_nvidia_stream(input_text, username): yield chunk
         except Exception as e:
