@@ -280,30 +280,89 @@ def get_weather(city):
         return f"{icon} **{city.title()}**\n🌡️ {temp}°C (feels {feels}°C)\n💧 Humidity: {humidity}% | 💨 Wind: {wind} m/s\n{desc}"
     except: return "❌ Weather fetch failed."
 
-# ─── CRICKET ───
-@ttl_cache(120)
+# ─── CRICKET (CRICBUZZ) ───
+@ttl_cache(60)
 def get_cricket_live():
-    api_key = os.getenv('CRICKET_API_KEY')
-    if not api_key: return "⚠️ CRICKET_API_KEY missing in .env"
+    api_key = os.getenv('RAPIDAPI_KEY')
+    if not api_key: return "⚠️ RAPIDAPI_KEY missing in .env"
     try:
-        url = f"https://api.cricapi.com/v1/currentMatches?apikey={api_key}&offset=0"
-        data = requests.get(url, timeout=10).json()
-        if data.get('status') != 'success': return "❌ Cricket data unavailable"
-        matches = data.get('data', [])
-        if not matches: return "🏏 Abhi koi live match nahi hai"
-        result = "🏏 **LIVE CRICKET**\n━━━━━━━━━━━━━━\n"
-        for m in matches[:4]:
-            name = m.get('name', 'Unknown Match')
-            status = m.get('status', '')
-            match_type = m.get('matchType', '').upper()
-            score = m.get('score', [])
-            result += f"\n🔴 **{name}**\n📋 {match_type} | {status}\n"
-            if score:
-                for s in score:
-                    result += f"📊 {s.get('inning')}: {s.get('r')}/{s.get('w')} ({s.get('o')} ov)\n"
-            result += "━━━━━━━━━━━━━━\n"
+        url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live"
+        headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "cricbuzz-cricket.p.rapidapi.com"}
+        data = requests.get(url, headers=headers, timeout=10).json()
+        matches = data.get('typeMatches', [])
+        result = "🏏 **LIVE CRICKET SCORES**\n━━━━━━━━━━━━━━\n"
+        found = False
+        for type_match in matches:
+            series_list = type_match.get('seriesMatches', [])
+            for series in series_list:
+                series_data = series.get('seriesAdWrapper', {})
+                if not series_data: continue
+                series_name = series_data.get('seriesName', '')
+                match_list = series_data.get('matches', [])
+                for match in match_list:
+                    mi = match.get('matchInfo', {}); ms = match.get('matchScore', {})
+                    team1 = mi.get('team1', {}).get('teamSName', '?'); team2 = mi.get('team2', {}).get('teamSName', '?')
+                    status = mi.get('status', '')
+                    t1s = ms.get('team1Score', {}); t2s = ms.get('team2Score', {})
+                    t1_inn = t1s.get('inngs1', {}); t2_inn = t2s.get('inngs1', {})
+                    t1_score = f"{t1_inn.get('runs', 0)}/{t1_inn.get('wickets', 0)} ({t1_inn.get('overs', 0)} ov)" if t1_inn else "Yet to bat"
+                    t2_score = f"{t2_inn.get('runs', 0)}/{t2_inn.get('wickets', 0)} ({t2_inn.get('overs', 0)} ov)" if t2_inn else "Yet to bat"
+                    result += f"\n🔴 **{team1} vs {team2}**\n📋 {series_name}\n📊 {team1}: {t1_score}\n📊 {team2}: {t2_score}\n📢 {status}\n━━━━━━━━━━━━━━\n"
+                    found = True
+        if not found: result += "😴 Abhi koi live match nahi hai\n"
         return result
     except Exception as e: return f"❌ Cricket error: {str(e)}"
+
+@ttl_cache(300)
+def get_cricket_recent():
+    api_key = os.getenv('RAPIDAPI_KEY')
+    if not api_key: return "⚠️ RAPIDAPI_KEY missing in .env"
+    try:
+        url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent"
+        headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "cricbuzz-cricket.p.rapidapi.com"}
+        data = requests.get(url, headers=headers, timeout=10).json()
+        matches = data.get('typeMatches', [])
+        result = "🏏 **RECENT CRICKET RESULTS**\n━━━━━━━━━━━━━━\n"
+        count = 0
+        for type_match in matches:
+            series_list = type_match.get('seriesMatches', [])
+            for series in series_list:
+                series_data = series.get('seriesAdWrapper', {})
+                if not series_data: continue
+                series_name = series_data.get('seriesName', '')
+                match_list = series_data.get('matches', [])
+                for match in match_list:
+                    if count >= 5: break
+                    mi = match.get('matchInfo', {}); ms = match.get('matchScore', {})
+                    team1 = mi.get('team1', {}).get('teamSName', '?'); team2 = mi.get('team2', {}).get('teamSName', '?')
+                    status = mi.get('status', '')
+                    t1s = ms.get('team1Score', {}); t2s = ms.get('team2Score', {})
+                    t1_inn = t1s.get('inngs1', {}); t2_inn = t2s.get('inngs1', {})
+                    t1_score = f"{t1_inn.get('runs',0)}/{t1_inn.get('wickets',0)} ({t1_inn.get('overs',0)} ov)" if t1_inn else "-"
+                    t2_score = f"{t2_inn.get('runs',0)}/{t2_inn.get('wickets',0)} ({t2_inn.get('overs',0)} ov)" if t2_inn else "-"
+                    result += f"\n✅ **{team1} vs {team2}**\n🏆 {series_name[:35]}\n📊 {team1}: {t1_score}\n📊 {team2}: {t2_score}\n📢 {status}\n━━━━━━━━━━━━━━\n"
+                    count += 1
+        return result
+    except Exception as e: return f"❌ Recent matches error: {str(e)}"
+
+@ttl_cache(1800)
+def get_ipl_points_table():
+    api_key = os.getenv('RAPIDAPI_KEY')
+    if not api_key: return "⚠️ RAPIDAPI_KEY missing in .env"
+    try:
+        url = "https://cricbuzz-cricket.p.rapidapi.com/series/v1/7607/points-table"
+        headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": "cricbuzz-cricket.p.rapidapi.com"}
+        data = requests.get(url, headers=headers, timeout=10).json()
+        result = "🏆 **IPL 2026 POINTS TABLE**\n━━━━━━━━━━━━━━\n"
+        result += f"{'Team':<6} {'P':<4} {'W':<4} {'L':<4} {'Pts':<5} {'NRR'}\n━━━━━━━━━━━━━━\n"
+        rows = data.get('pointsTable', [{}])[0].get('pointsTableInfo', [])
+        for row in rows:
+            team = row.get('teamInfo', {}).get('teamSName', '?'); played = row.get('matchesPlayed', 0)
+            won = row.get('matchesWon', 0); lost = row.get('matchesLost', 0)
+            pts = row.get('points', 0); nrr = row.get('nrrDisplay', '0.000')
+            result += f"{team:<6} {played:<4} {won:<4} {lost:<4} {pts:<5} {nrr}\n"
+        return result
+    except Exception as e: return f"❌ Points table error: {str(e)}"
 
 # ─── STUDY ───
 study_state = {"active": False, "remaining": 0, "total": 0}
@@ -810,19 +869,44 @@ HTML = r"""<!DOCTYPE html>
     <!-- CRICKET -->
     <div class="panel" id="cricketPanel">
         <div style="padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;">
-            <div style="display:flex;gap:7px;">
-                <button class="go-btn" style="flex:1;padding:10px;" onclick="loadCricket()">🔴 LIVE SCORES REFRESH</button>
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="switchCr('live',this)">🔴 LIVE</button>
+                <button class="sub-tab" onclick="switchCr('recent',this)">✅ RECENT</button>
+                <button class="sub-tab" onclick="switchCr('points',this)">🏆 TABLE</button>
+            </div>
+            <div class="sub-view active" id="crv-live">
+                <div class="card">
+                    <h3>🔴 LIVE MATCHES</h3>
+                    <button class="sb green" onclick="loadCricket('live')">🔄 REFRESH</button>
+                    <div id="cricketLive" style="font-family:'Share Tech Mono',monospace;font-size:0.8rem;line-height:2;color:var(--text);min-height:150px;">
+                        <span style="color:var(--dim)">Click REFRESH to load...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sub-view" id="crv-recent">
+                <div class="card">
+                    <h3>✅ RECENT RESULTS</h3>
+                    <button class="sb" onclick="loadCricket('recent')">🔄 REFRESH</button>
+                    <div id="cricketRecent" style="font-family:'Share Tech Mono',monospace;font-size:0.8rem;line-height:2;color:var(--text);min-height:150px;">
+                        <span style="color:var(--dim)">Click REFRESH to load...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sub-view" id="crv-points">
+                <div class="card">
+                    <h3>🏆 IPL 2026 POINTS TABLE</h3>
+                    <button class="sb" onclick="loadCricket('points')">🔄 REFRESH</button>
+                    <div id="cricketPoints" style="font-family:'Share Tech Mono',monospace;font-size:0.75rem;line-height:2;color:var(--text);min-height:150px;white-space:pre;">
+                        <span style="color:var(--dim)">Click REFRESH to load...</span>
+                    </div>
+                </div>
             </div>
             <div class="chips">
-                <span class="chip" onclick="qa('IPL live score')">🏆 IPL</span>
-                <span class="chip" onclick="qa('India cricket score')">🇮🇳 India</span>
-                <span class="chip" onclick="qa('cricket live match')">🔴 Live</span>
-                <span class="chip" onclick="qa('cricket points table')">📊 Points Table</span>
+                <span class="chip" onclick="qa('IPL live score abhi')">🔴 Live</span>
+                <span class="chip" onclick="qa('yesterday IPL match score')">📅 Yesterday</span>
+                <span class="chip" onclick="qa('IPL points table 2026')">🏆 Table</span>
+                <span class="chip" onclick="qa('India cricket news')">🇮🇳 India</span>
             </div>
-            <div id="cricketResult" style="background:rgba(0,240,255,0.02);border:1px solid var(--border);border-radius:8px;padding:13px;font-family:'Share Tech Mono',monospace;font-size:0.83rem;line-height:2;min-height:200px;">
-                <span style="color:var(--dim)">Click LIVE SCORES to load...</span>
-            </div>
-            <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--dim);text-align:center;">🔄 Auto-refresh every 2 min</div>
         </div>
     </div>
 
@@ -941,14 +1025,19 @@ function addMsg(role,html,typing=false){const d=document.createElement('div');if
 function qa(q){chatInput.value=q;sendChat();}
 function bootMsg(u){addMsg('bot',fmt(`🖖 **Assalamalekum ${u.charAt(0).toUpperCase()+u.slice(1)} Bhai!**\n\n✨ **inom1.0 — Fully Powered** ✨\n\n• 💬 Chat — Memory AI + Voice + TTS\n• 📚 Study — Timer + Tasks + Quiz + Flashcards + Summarizer\n• 📈 Stocks — Search + Watchlist + Crypto\n• 🎵 Music — YouTube + 8 Moods\n• 🛠 Tools — Code + Image Prompt + Translate + Math AI\n• 🧠 Memory — Firebase Cloud Sync\n\n*Kya karna hai aaj? Ready hoon!* 🚀`));}
 // Cricket
-async function loadCricket(){
-    const box=document.getElementById('cricketResult');box.innerHTML='<span style="color:var(--dim)">⏳ Loading live scores...</span>';
+function switchCr(n,b){document.querySelectorAll('#cricketPanel .sub-view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('#cricketPanel .sub-tab').forEach(b=>b.classList.remove('active'));document.getElementById('crv-'+n).classList.add('active');b.classList.add('active');}
+async function loadCricket(type='live'){
+    const ids={'live':'cricketLive','recent':'cricketRecent','points':'cricketPoints'};
+    const box=document.getElementById(ids[type]);box.innerHTML='<span style="color:var(--dim)">⏳ Loading...</span>';
     try{
-        const r=await fetch('/cricket',{headers:{'Authorization':'Bearer '+token}});const d=await r.json();
+        const r=await fetch(`/cricket/${type}`,{headers:{'Authorization':'Bearer '+token}});const d=await r.json();
         box.innerHTML=fmt(d.result||'No data.');
-    }catch{box.innerHTML='❌ Error loading cricket data.';}
+    }catch{box.innerHTML='❌ Error loading data.';}
 }
-setInterval(()=>{if(document.getElementById('cricketPanel').classList.contains('active'))loadCricket();},120000);
+setInterval(()=>{if(document.getElementById('cricketPanel').classList.contains('active'))loadCricket('live');},120000);
+
+const origSwitchTab=switchTab;
+function switchTab(n,b){origSwitchTab(n,b);if(n==='cricket')loadCricket('live');}
 
 async function sendChat(){
     const text=chatInput.value.trim();if(!text)return;
@@ -1105,8 +1194,11 @@ def ask_stream():
                     if not isinstance(mem, list): mem = []
                     mem.append(item); save_memory_cloud(username, 'notes', mem[-20:])
                     yield f"💾 Yaad rakh liya: **{item}** ✅"; return
-            if any(x in low for x in ['cricket', 'ipl', 'match', 'score', 'batting', 'bowling']):
-                yield get_cricket_live(); return
+            if (any(x in low for x in ['ipl', 'cricket', 'match score', 'kal ka match', 'yesterday match', 'live score', 'points table'])):
+                if any(x in low for x in ['points table', 'standings', 'ranking']): yield get_ipl_points_table()
+                elif any(x in low for x in ['recent', 'yesterday', 'kal ka', 'last match']): yield get_cricket_recent()
+                else: yield get_cricket_live()
+                return
             for chunk in ask_nvidia_stream(input_text, username): yield chunk
         except Exception as e:
             yield f"⚠️ Error: {str(e)}"
@@ -1214,10 +1306,20 @@ def market_ticker():
 @app.route('/health')
 def health(): return "inom1.0 Online! 🚀", 200
 
-@app.route('/cricket')
+@app.route('/cricket/live')
 @require_auth
-def cricket_route():
+def cricket_live_route():
     return jsonify({"result": get_cricket_live()})
+
+@app.route('/cricket/recent')
+@require_auth
+def cricket_recent_route():
+    return jsonify({"result": get_cricket_recent()})
+
+@app.route('/cricket/points')
+@require_auth
+def cricket_points_route():
+    return jsonify({"result": get_ipl_points_table()})
 
 VOICE = "hi-IN-SwaraNeural"
 
