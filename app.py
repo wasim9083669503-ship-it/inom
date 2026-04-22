@@ -124,9 +124,12 @@ def save_memory_cloud(username, key, value):
 def get_memory_cloud(username, key=None):
     if firebase_db:
         try:
-            data = firebase_db.reference(f"users/{username}/memory").get() or {}
+            data = firebase_db.reference(f"users/{username}/memory").get()
+            if not isinstance(data, dict): data = {}
             return data.get(key) if key else data
-        except: pass
+        except Exception as e:
+            print(f"❌ Cloud Memory Error: {e}")
+            pass
     if key: return _local_memory.get(f"{username}:{key}")
     prefix = f"{username}:"
     return {k.replace(prefix, ''): v for k, v in _local_memory.items() if k.startswith(prefix)}
@@ -825,7 +828,7 @@ async function doLogin(){
     }catch{err.textContent='Server error.';}
 }
 function doLogout(){token='';localStorage.removeItem('astra_token');location.reload();}
-(async()=>{if(!token)return;try{const r=await fetch('/verify-token',{headers:{'Authorization':'Bearer '+token}});if(r.ok){document.getElementById('loginScreen').classList.add('hidden');onLogin('Akram');}else{localStorage.removeItem('astra_token');token='';}}catch{localStorage.removeItem('astra_token');token='';}})();
+(async()=>{if(!token)return;try{const r=await fetch('/verify-token',{headers:{'Authorization':'Bearer '+token}});if(r.ok){document.getElementById('loginScreen').classList.add('hidden');onLogin('Wasim');}else{localStorage.removeItem('astra_token');token='';}}catch{localStorage.removeItem('astra_token');token='';}})();
 document.getElementById('lPass').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
 function onLogin(u){loadMem();updateTicker();loadWL();setTimeout(()=>bootMsg(u),400);document.getElementById('fbStatus').textContent='Connected ✓';}
 
@@ -969,7 +972,7 @@ if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js').catch
 def index(): return render_template_string(HTML)
 
 @app.route('/manifest.json')
-def manifest(): return jsonify({"name":"inom1.0","short_name":"inom1.0","start_url":"/","display":"standalone","background_color":"#020408","theme_color":"#00f0ff","description":"inom1.0 AI by Akram","icons":[{"src":"https://img.icons8.com/fluency/192/artificial-intelligence.png","sizes":"192x192","type":"image/png"}]})
+def manifest(): return jsonify({"name":"inom1.0","short_name":"inom1.0","start_url":"/","display":"standalone","background_color":"#020408","theme_color":"#00f0ff","description":"inom1.0 AI by Wasim","icons":[{"src":"https://img.icons8.com/fluency/192/artificial-intelligence.png","sizes":"192x192","type":"image/png"}]})
 
 @app.route('/sw.js')
 def sw(): return Response("const C='astra-v3';const U=['/'];self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(U))));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});", mimetype='application/javascript')
@@ -1131,7 +1134,7 @@ def market_ticker():
     try:
         s = get_portfolio_summary(); parts = s.split(' | ')
         html_p = [f'<span class="t-up">{p}</span>' if '▲' in p else f'<span class="t-dn">{p}</span>' if '▼' in p else p for p in parts]
-        return jsonify({"ticker": ' &nbsp;·&nbsp; '.join(html_p) + ' &nbsp;·&nbsp; <span style="color:var(--dim)">inom1.0 · AKRAM ANSARI</span>'})
+        return jsonify({"ticker": ' &nbsp;●&nbsp; '.join(html_p) + ' &nbsp;●&nbsp; <span style="color:var(--dim)">inom1.0 ● WASIM</span>'})
     except: return jsonify({"ticker":"Market loading..."})
 
 @app.route('/health')
