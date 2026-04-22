@@ -9,10 +9,10 @@ from datetime import datetime
 # Import Astra backend
 from astra import main, set_ui_callback, face_login
 
-class AstraCompleteUI:
+class InomCompleteUI:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("ASTRA HOLOGRAPHIC HUD - MARK VII")
+        self.root.title("inom1.0 HOLOGRAPHIC HUD")
         self.root.configure(bg='#000000')
 
         # Window state
@@ -20,7 +20,7 @@ class AstraCompleteUI:
         self.normal_geometry = None
         self.normal_position = None
         self.is_running = True
-        self.astra_running = False
+        self.inom_running = False
 
         self.root.geometry("1300x750")
         self.center_window()
@@ -60,7 +60,7 @@ class AstraCompleteUI:
 
         self.root.bind('<Configure>', self.on_resize)
 
-        set_ui_callback(self.on_astra_update)
+        set_ui_callback(self.on_inom_update)
         self.start_animations()
         self.boot_sequence()
 
@@ -87,7 +87,7 @@ class AstraCompleteUI:
         left.pack(side=tk.LEFT, padx=15)
         tk.Label(left, text="▲", font=('Orbitron', 16, 'bold'),
                  fg=self.colors['primary'], bg=self.colors['title_bg']).pack(side=tk.LEFT)
-        tk.Label(left, text=" ASTRA MARK VII.1", font=('Orbitron', 12, 'bold'),
+        tk.Label(left, text=" inom1.0", font=('Orbitron', 12, 'bold'),
                  fg=self.colors['primary'], bg=self.colors['title_bg']).pack(side=tk.LEFT, padx=5)
 
         sf = tk.Frame(self.title_bar, bg=self.colors['title_bg'])
@@ -360,7 +360,7 @@ class AstraCompleteUI:
         tk.Button(hdr, text="CLEAR", font=('Orbitron', 8), fg=self.colors['accent'],
                   bg=self.colors['glass'], bd=0, cursor='hand2',
                   command=lambda: [self.log_text.delete(1.0, tk.END),
-                                   self.add_log("LOG CLEARED")]).pack(side=tk.RIGHT)
+                                   self.add_log("Shutting down inom1.0 🔒")]).pack(side=tk.RIGHT)
 
         self.log_text = tk.Text(self.log_frame, bg='#030810', fg=self.colors['primary'],
                                  font=('Courier', 9), bd=0, wrap=tk.WORD, padx=10, pady=5)
@@ -433,7 +433,7 @@ class AstraCompleteUI:
         tr = self.circle_r + 25
         color = self.colors['secondary'] if self.is_speaking else self.colors['primary']
         fs = 10 if self.is_speaking else 8
-        full = f"  {self.rotating_text}  ·  ASTRA ONLINE  ·  "
+        full = f"  {self.rotating_text}  ·  inom1.0 ONLINE  ·  "
         step = (2 * math.pi) / max(len(full), 1)
         off = math.radians(self.text_angle)
 
@@ -519,9 +519,9 @@ class AstraCompleteUI:
         self.root.after(500, self.animate_grid)
 
     # ================================================================
-    # ASTRA INTEGRATION
+    # inom1.0 INTEGRATION
     # ================================================================
-    def on_astra_update(self, text):
+    def on_inom_update(self, text):
         """Thread-safe UI update using after()"""
         self.root.after(0, self._update_ui_state, text)
 
@@ -547,7 +547,7 @@ class AstraCompleteUI:
             self.add_log(f"🤖 {text}")
             self.is_speaking = True
             # Update panel with Astra's response
-            self.show_voice_panel(f"🤖 Astra: {text}")
+            self.show_voice_panel(f"🤖 inom1.0: {text}")
             # Stay in speaking/glow state for a few seconds
             self.root.after(4000, self.reset_idle)
 
@@ -600,19 +600,19 @@ class AstraCompleteUI:
         msgs = ["⚙️ SYSTEM BOOT: HOLOGRAPHIC INTERFACE ONLINE",
                 "⚙️ QUANTUM PROCESSOR: ACTIVE",
                 "⚙️ NEURAL LINK: ESTABLISHED",
-                "🤖 WELCOME, AKRAM. SYSTEM INITIALIZING..."]
+                "🤖 WELCOME, WASIM. SYSTEM INITIALIZING..."]
         def show(i=0):
             if i < len(msgs):
                 self.add_log(msgs[i])
                 self.root.after(1000, lambda: show(i + 1))
             else:
-                self.start_astra()
+                self.start_inom()
         self.root.after(500, show)
 
-    def start_astra(self):
-        if self.astra_running: return
+    def start_inom(self):
+        if self.inom_running: return
         def run():
-            self.astra_running = True
+            self.inom_running = True
             self.add_log("⚙️ INITIATING VOICE ENGINE")
             if face_login():
                 self.add_log("🤖 VOICE SYSTEM ONLINE.")
@@ -621,12 +621,12 @@ class AstraCompleteUI:
                 main()
             else:
                 self.add_log("🤖 ACCESS DENIED.")
-                self.astra_running = False
+                self.inom_running = False
         threading.Thread(target=run, daemon=True).start()
 
     def core_online(self):
         self.add_log("CORE SYSTEM: INITIALIZED")
-        self.start_astra()
+        self.start_inom()
 
     def hologram_mode(self):
         self.add_log("HOLOGRAM MODE: ACTIVATED")
@@ -643,5 +643,5 @@ class AstraCompleteUI:
         self.root.mainloop()
 
 if __name__ == "__main__":
-    app = AstraCompleteUI()
+    app = InomCompleteUI()
     app.run()

@@ -110,7 +110,7 @@ except Exception as e:
 
 # -------- LOGIN SYSTEM --------
 USERS = {
-    "akram": {"password": "1619"}
+    "wasim": {"password": "1122"}
 }
 
 def login(username, password):
@@ -160,7 +160,7 @@ async def speak_async(text):
     await communicate.save("voice.mp3")
 
 def speak(text):
-    print(f"🔊 Astra: {text}")
+    print(f"🔊 inom1.0: {text}")
     update_ui(f"Speaking: {text}")
 
     try:
@@ -266,11 +266,11 @@ User Question:
 """
 
         system_prompt = f"""
-You are Astra, an advanced AI assistant created for Akram.
+You are inom1.0, an advanced AI assistant created for Wasim.
 Reply short, smart, and helpful. Maximum 2 lines.
 
 User Profile:
-- Name: Akram Ansari | Role: Aspiring Software Engineer 
+- Name: Wasim | Role: User 
 - Location: Chhapra, Bihar, India
 - Phone: +91 6204110766 | Email: meakramiyi@gmail.com
 - LinkedIn: linkedin.com/in/akram-alii
@@ -352,7 +352,7 @@ def get_memory(key):
         print(f"❌ Cloud Load Error: {e}")
         return None
 
-def save_full_memory(memory, username="akram"):
+def save_full_memory(memory, username="wasim"):
     """Existing full memory save (local + cloud sync)."""
     # Save Local
     with open(MEMORY_FILE, "w") as f:
@@ -397,7 +397,7 @@ def face_login():
                 rgb = frame[:, :, ::-1]
                 faces = face_recognition.face_encodings(rgb)
                 if faces:
-                    speak("Welcome Akram 😎")
+                    speak("Welcome Wasim 😎")
                     return True
                 else:
                     speak("Face not recognized, password try karo")
@@ -409,8 +409,8 @@ def face_login():
     
     # Fallback: Password login (3 attempts)
     valid_passwords = [
-        "1619", "16 19", "one six one nine",
-        "skip", "akram", "akram ansari",
+        "1122", "11 22", "one one two two",
+        "skip", "wasim", "wasim ansari",
         "start", "open", "hello",
         "password", "login", "yes",
         "access", "enter", "okay",
@@ -423,7 +423,7 @@ def face_login():
         
         # Check if ANY valid password word is in the command
         if command != "" and any(pwd in command for pwd in valid_passwords):
-            speak("Welcome Akram 😎")
+            speak("Welcome Wasim 😎")
             return True
         else:
             if attempt < 2:
@@ -470,7 +470,7 @@ def process_command(command):
     command = command.lower()
 
     # Wake word remove (all synonyms)
-    for word in ["hey", "astra", "jarvis", "he", "stra"]:
+    for word in ["hey", "inom", "astra", "jarvis", "he", "stra"]:
         command = command.replace(word, "").strip()
     
     if command == "":
@@ -896,7 +896,7 @@ def process_command(command):
 
     # -------- EXIT --------
     elif "stop" in command or "exit" in command:
-        speak("Shutting down Astra 🔒")
+        speak("Shutting down inom1.0 🔒")
         exit()
 
     # -------- REPORT LAST COMMAND --------
@@ -932,7 +932,7 @@ def main():
 
         if command != "":
             # Still strip wake words if the user says them
-            wake_words = ["hey astra", "he astra", "astra", "jarvis", "hello astra"]
+            wake_words = ["hey inom", "inom", "hey astra", "he astra", "astra", "jarvis", "hello astra"]
             for word in wake_words:
                 command = command.replace(word, "").strip()
             

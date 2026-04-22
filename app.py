@@ -30,7 +30,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'astra-level-9-super-secret-2025')
 # ─── JWT AUTH ───
 JWT_SECRET = os.getenv('JWT_SECRET', 'astra-jwt-secret-key-2025')
 JWT_EXPIRY_HOURS = 24
-USERS = {"akram": hashlib.sha256("1619".encode()).hexdigest()}
+USERS = {"wasim": "b3282a2f2a28757b3a18ab833de16a9c54518c0b0cf493e3f0a7cf09386f326a"}
 
 def generate_token(username):
     return jwt.encode({'username': username, 'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS), 'iat': datetime.utcnow()}, JWT_SECRET, algorithm='HS256')
@@ -52,7 +52,7 @@ def require_auth(f):
 
 def get_username_from_request():
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    return verify_token(token) or 'akram'
+    return verify_token(token) or 'wasim'
 
 # ─── TTL CACHE ───
 def ttl_cache(seconds):
@@ -154,15 +154,15 @@ def get_history(username):
         _conv_histories[username] = load_conv(username)
     return _conv_histories[username]
 
-def build_system_prompt(username="akram"):
+def build_system_prompt(username="wasim"):
     memory = get_memory_cloud(username) or {}
     extras = []
     if memory.get("notes"): extras.append(f"Notes: {', '.join(str(n) for n in memory['notes'][-5:])}")
     if memory.get("preference"): extras.append(f"Likes: {memory['preference']}")
     if memory.get("friends"): extras.append(f"Friends: {', '.join(memory['friends'][-10:])}")
-    return f"""You are Astra, a Level 9 AI assistant for Akram Ansari.
+    return f"""You are inom1.0, a smart AI assistant for Wasim.
 Speak Hinglish (Hindi+English mix). Be smart, warm, concise (2-4 lines). Use emojis.
-User: Akram Ansari, B.Tech CS, Brainware University 2024-2028, Chhapra Bihar.
+User: Wasim, smart AI user.
 Friends: Rosidul Islam (Best Friend), Aryan Raj (Editor), Kaif Ali, Munshi Insiyat.
 {chr(10).join(extras)}
 Be like a smart best friend. Auto-learn from conversation."""
@@ -328,7 +328,7 @@ HTML = r"""<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>▲ ASTRA LEVEL 9</title>
+    <title>▲ inom1.0</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#020408">
     <meta name="mobile-web-app-capable" content="yes">
@@ -495,8 +495,8 @@ HTML = r"""<!DOCTYPE html>
   <div id="lr2" style="position:absolute;width:250px;height:250px;border-radius:50%;border:1px solid rgba(255,0,170,0.08);border-right-color:#ff00aa;animation:ldrRing 3s linear infinite reverse;"></div>
   <div id="lr3" style="position:absolute;width:320px;height:320px;border-radius:50%;border:1px solid rgba(170,255,0,0.07);border-bottom-color:#aaff00;animation:ldrRing 4s linear infinite;"></div>
   <div style="position:relative;z-index:2;text-align:center;">
-    <div style="font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:900;color:#00f0ff;letter-spacing:6px;text-shadow:0 0 20px rgba(0,240,255,0.5);animation:ldrPulse 1.5s ease-in-out infinite;">▲ ASTRA</div>
-    <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(0,240,255,0.45);letter-spacing:4px;margin-top:5px;">LEVEL 9 · INITIALIZING</div>
+    <div style="font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:900;color:#00f0ff;letter-spacing:6px;text-shadow:0 0 20px rgba(0,240,255,0.5);animation:ldrPulse 1.5s ease-in-out infinite;">▲ inom1.0</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(0,240,255,0.45);letter-spacing:4px;margin-top:5px;">VERSION 1.0 · INITIALIZING</div>
   </div>
   <div style="position:relative;z-index:2;width:220px;margin-top:90px;">
     <div style="background:rgba(0,240,255,0.08);border-radius:10px;height:3px;overflow:hidden;"><div id="ldrBar" style="height:100%;width:0%;border-radius:10px;background:linear-gradient(90deg,#00f0ff,#aaff00);transition:width 0.3s ease;"></div></div>
@@ -517,9 +517,9 @@ HTML = r"""<!DOCTYPE html>
 
 <div id="loginScreen">
     <div class="login-box">
-        <div class="login-logo">▲ ASTRA</div>
-        <div class="login-sub">LEVEL 9 · SECURE ACCESS</div>
-        <input type="text" id="lUser" class="login-field" placeholder="USERNAME" value="akram" autocomplete="username">
+        <div class="login-logo">▲ inom1.0</div>
+        <div class="login-sub">VERSION 1.0 · SECURE ACCESS</div>
+        <input type="text" id="lUser" class="login-field" placeholder="USERNAME" value="wasim" autocomplete="username">
         <input type="password" id="lPass" class="login-field" placeholder="PASSWORD / PIN" autocomplete="current-password">
         <div class="login-err" id="lErr"></div>
         <button class="login-btn" onclick="doLogin()">▶ INITIALIZE SYSTEM</button>
@@ -528,7 +528,7 @@ HTML = r"""<!DOCTYPE html>
 
 <div class="app">
     <header>
-        <div class="logo">▲ ASTRA<span> L9</span></div>
+        <div class="logo">▲ inom<span>1.0</span></div>
         <div class="header-right">
             <div class="status-pill" id="statusPill">● ONLINE</div>
             <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
@@ -559,7 +559,7 @@ HTML = r"""<!DOCTYPE html>
         <div class="chat-input-row">
             <button class="icon-btn" onclick="startVoice()" title="Voice input">🎤</button>
             <button class="icon-btn" id="ttsBtn" onclick="toggleTTS()" title="Voice reply">🔊</button>
-            <input type="text" id="chatInput" placeholder="Ask Astra anything..." autocomplete="off" enterkeyhint="send">
+            <input type="text" id="chatInput" placeholder="Ask inom1.0 anything..." autocomplete="off" enterkeyhint="send">
             <button class="send-btn" onclick="sendChat()">SEND</button>
         </div>
     </div>
@@ -798,7 +798,7 @@ HTML = r"""<!DOCTYPE html>
 </div>
 
 <div id="installBanner">
-    📱 Install Astra?
+    📱 Install inom1.0?
     <button onclick="installPWA()">INSTALL</button>
     <button style="background:transparent;color:var(--dim);border:none;cursor:pointer;" onclick="this.parentElement.classList.remove('show')">✕</button>
 </div>
@@ -882,7 +882,7 @@ const chatMsgs=document.getElementById('chatMsgs'),chatInput=document.getElement
 let msgCount=0;
 function addMsg(role,html,typing=false){const d=document.createElement('div');if(typing){d.className='typing-dots';d.innerHTML='<span></span><span></span><span></span>';}else{d.className='msg '+role;d.innerHTML=html;}chatMsgs.appendChild(d);chatMsgs.scrollTop=chatMsgs.scrollHeight;return d;}
 function qa(q){chatInput.value=q;sendChat();}
-function bootMsg(u){addMsg('bot',fmt(`🖖 **Assalamalekum ${u.charAt(0).toUpperCase()+u.slice(1)} Bhai!**\n\n✨ **Astra Level 9 — Fully Powered** ✨\n\n• 💬 Chat — Memory AI + Voice + TTS\n• 📚 Study — Timer + Tasks + Quiz + Flashcards + Summarizer\n• 📈 Stocks — Search + Watchlist + Crypto\n• 🎵 Music — YouTube + 8 Moods\n• 🛠 Tools — Code + Image Prompt + Translate + Math AI\n• 🧠 Memory — Firebase Cloud Sync\n\n*Kya karna hai aaj? Ready hoon!* 🚀`));}
+function bootMsg(u){addMsg('bot',fmt(`🖖 **Assalamalekum ${u.charAt(0).toUpperCase()+u.slice(1)} Bhai!**\n\n✨ **inom1.0 — Fully Powered** ✨\n\n• 💬 Chat — Memory AI + Voice + TTS\n• 📚 Study — Timer + Tasks + Quiz + Flashcards + Summarizer\n• 📈 Stocks — Search + Watchlist + Crypto\n• 🎵 Music — YouTube + 8 Moods\n• 🛠 Tools — Code + Image Prompt + Translate + Math AI\n• 🧠 Memory — Firebase Cloud Sync\n\n*Kya karna hai aaj? Ready hoon!* 🚀`));}
 async function sendChat(){
     const text=chatInput.value.trim();if(!text)return;
     addMsg('user',esc(text));chatInput.value='';msgCount+=2;document.getElementById('histCount').textContent=msgCount;
@@ -971,7 +971,7 @@ if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js').catch
 def index(): return render_template_string(HTML)
 
 @app.route('/manifest.json')
-def manifest(): return jsonify({"name":"Astra Level 9","short_name":"Astra","start_url":"/","display":"standalone","background_color":"#020408","theme_color":"#00f0ff","description":"Astra AI by Akram","icons":[{"src":"https://img.icons8.com/fluency/192/artificial-intelligence.png","sizes":"192x192","type":"image/png"}]})
+def manifest(): return jsonify({"name":"inom1.0","short_name":"inom1.0","start_url":"/","display":"standalone","background_color":"#020408","theme_color":"#00f0ff","description":"inom1.0 AI by Akram","icons":[{"src":"https://img.icons8.com/fluency/192/artificial-intelligence.png","sizes":"192x192","type":"image/png"}]})
 
 @app.route('/sw.js')
 def sw(): return Response("const C='astra-v3';const U=['/'];self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(U))));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});", mimetype='application/javascript')
@@ -1058,13 +1058,13 @@ def daily_briefing():
         date_str = now.strftime("%d %B %Y"); time_str = now.strftime("%I:%M %p")
         study_plan = {"monday":"Arrays & Searching","tuesday":"Strings & Pattern Matching","wednesday":"Linked List","thursday":"Stack & Queue","friday":"Trees & BST","saturday":"Graphs & DP","sunday":"Revision + Mock Test"}
         aaj_topic = study_plan.get(day.lower(), "Revision")
-        yield f"🌅 **Good Morning Akram Bhai!**\n📅 {day}, {date_str} | ⏰ {time_str}\n\n"
+        yield f"🌅 **Good Morning Wasim Bhai!**\n📅 {day}, {date_str} | ⏰ {time_str}\n\n"
         yield "━━━━━━━━━━━━━━━━━━\n🌤️ **WEATHER**\n"; yield get_weather("Chhapra") + "\n\n"
         yield "━━━━━━━━━━━━━━━━━━\n💰 **MARKETS**\n"; yield get_crypto_price("bitcoin") + "\n"; yield get_crypto_price("ethereum") + "\n\n"
         yield "━━━━━━━━━━━━━━━━━━\n📰 **TOP NEWS**\n"; yield get_news(country="in") + "\n"
         yield "━━━━━━━━━━━━━━━━━━\n📚 **AAJ KA TOPIC**\n🎯 {aaj_topic}\n\n"
-        yield "━━━━━━━━━━━━━━━━━━\n🔥 **ASTRA KI BAAT**\n"
-        yield run_ai("You are Astra. Give a short 2-line motivational message in Hinglish for a B.Tech CS student. Use 1-2 emojis. Be energetic.", f"Today is {day}. Topic: {aaj_topic}.") + "\n"
+        yield "━━━━━━━━━━━━━━━━━━\n🔥 **inom1.0 KI BAAT**\n"
+        yield run_ai("You are inom1.0. Give a short 2-line motivational message in Hinglish for a B.Tech CS student. Use 1-2 emojis. Be energetic.", f"Today is {day}. Topic: {aaj_topic}.") + "\n"
         yield "\n✅ **Briefing complete! Kaam pe lag ja bhai! 💪**"
     return Response(stream_with_context(generate()), mimetype='text/plain')
 
@@ -1133,11 +1133,11 @@ def market_ticker():
     try:
         s = get_portfolio_summary(); parts = s.split(' | ')
         html_p = [f'<span class="t-up">{p}</span>' if '▲' in p else f'<span class="t-dn">{p}</span>' if '▼' in p else p for p in parts]
-        return jsonify({"ticker": ' &nbsp;·&nbsp; '.join(html_p) + ' &nbsp;·&nbsp; <span style="color:var(--dim)">ASTRA L9 · AKRAM ANSARI</span>'})
+        return jsonify({"ticker": ' &nbsp;·&nbsp; '.join(html_p) + ' &nbsp;·&nbsp; <span style="color:var(--dim)">inom1.0 · AKRAM ANSARI</span>'})
     except: return jsonify({"ticker":"Market loading..."})
 
 @app.route('/health')
-def health(): return "Astra Level 9 Online! 🚀", 200
+def health(): return "inom1.0 Online! 🚀", 200
 
 VOICE = "hi-IN-SwaraNeural"
 
