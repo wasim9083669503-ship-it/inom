@@ -1023,6 +1023,7 @@ function switchTab(n,b){
     document.getElementById(n+'Panel').classList.add('active');
     b.classList.add('active');
     if(n==='memory')loadMem();
+    if(n==='cricket')loadCricket('live');
     if(n==='briefing'){
         const tog=document.getElementById('autoToggle');if(tog){tog.checked=autoLoad;toggleAuto(tog);}
         if(autoLoad){const ld=localStorage.getItem('brief_last_date'),td=new Date().toLocaleDateString('en-IN');if(ld!==td){localStorage.setItem('brief_last_date',td);loadBriefing();}}
@@ -1050,8 +1051,6 @@ async function loadCricket(type='live'){
 }
 setInterval(()=>{if(document.getElementById('cricketPanel').classList.contains('active'))loadCricket('live');},120000);
 
-const origSwitchTab=switchTab;
-function switchTab(n,b){origSwitchTab(n,b);if(n==='cricket')loadCricket('live');}
 
 async function sendChat(){
     const text=chatInput.value.trim();if(!text)return;
